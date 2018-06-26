@@ -9,7 +9,7 @@ import twitter4j.auth.*;
 import twitter4j.conf.*;
 
 //TwitterAPIêßå¿ Å® 15ï™ 
-public class TwitterTest {
+public class TwitterModule {
   private static String Consumer_key = "WOb0qHqJkttrUyYaBfFI2YNN7";
   private static String Consumer_secret = "ysjxfE5dzqYJyHPFdzBCYnLnrJvDr3g9FPgj60oTZwIZG7erBU";
   private static String Access_token = "2591693293-78onB1jTcVxq7ovrIOOEhSfKLa77AUmpITh02QP";
