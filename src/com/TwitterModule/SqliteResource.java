@@ -71,7 +71,7 @@ public class SqliteResource {
         if(result.getString(2).equals("TwitterUserInfoURLs")) TwitterUserInfoURLsExists = true;
         if(result.getString(2).equals("UnReturnFollowIDs")) UnReturnFollowIDsExists = true;
         if(result.getString(2).equals("UnFollowIDs")) UnFollowIDsExists = true;
-        if(result.getString(2).equals("BufferTwitterIDs")) BufferTwitterIDsExists = true;
+        //if(result.getString(2).equals("BufferTwitterIDs")) BufferTwitterIDsExists = true;
       }
       
       if(!TwitterIDsExists) {
@@ -123,11 +123,6 @@ public class SqliteResource {
             + "UserProfileBackGroundImageURL text);";
         statement.execute(SQL);
       }
-      if(!BufferTwitterIDsExists) {
-        SQL = "create table BufferTwitterIDs("
-            + "TwitterID text primary key);";
-        statement.execute(SQL);
-      }
       if(!UnReturnFollowIDsExists) {
         SQL = "create view UnReturnFollowIDs as\n"
             + "select TwitterID from TwitterFollowIDs\n"
@@ -148,13 +143,7 @@ public class SqliteResource {
       statement.close();
       connection.close();
     }catch (SQLException e) {
-      e.printStackTrace(pw);
-      pw.flush();
-      System.out.println(StackTrace.toString());
-      System.out.println("--Missing SQL------------------------");
-      System.out.println(SQL);
-      System.out.println("-------------------------------------");
-      System.exit(1);
+      outputSQLStackTrace(e,SQL);
     }
     return TableCheckStatus;
   }
@@ -168,7 +157,16 @@ public class SqliteResource {
     property.put("autocommit", "OFF");
     return property;
   }
-
+  
+  private void outputSQLStackTrace(SQLException e,String SQL) {
+    e.printStackTrace(pw);
+    pw.flush();
+    System.out.println(StackTrace.toString());
+    System.out.println("--Missing SQL------------------------");
+    System.out.println(SQL);
+    System.out.println("-------------------------------------");
+    System.exit(1);
+  }
   
   //insertPattern = 0 TwitterIDs
   //insertPattern = 1 FollowerID
@@ -219,13 +217,7 @@ public class SqliteResource {
       else if(insertPattern == 1) System.out.println("TwitterFollowerIDs insert ok.");
       else if(insertPattern == 2) System.out.println("TwitterFollowIDs insert ok.");
     }catch (SQLException e) {
-      e.printStackTrace(pw);
-      pw.flush();
-      System.out.println(StackTrace.toString());
-      System.out.println("--Missing SQL------------------------");
-      System.out.println(SQL);
-      System.out.println("-------------------------------------");
-      System.exit(1);
+      outputSQLStackTrace(e,SQL);
     }
   }
   
@@ -245,17 +237,11 @@ public class SqliteResource {
       statement.close();
       connection.close();
     }catch (SQLException e){
-      e.printStackTrace(pw);
-      pw.flush();
-      System.out.println(StackTrace.toString());
-      System.out.println("--Missing SQL------------------------");
-      System.out.println(SQL);
-      System.out.println("-------------------------------------");
-      System.exit(1);
+      outputSQLStackTrace(e,SQL);
     }
   }
   
-  public List<String> getUpdateUserIDList() {
+  public List<String> getUpdateUserIDList(int UpdateFlg) {
     List<String> TwitterIDList = new ArrayList<String>();
     String SQL = "";
     try{
@@ -263,19 +249,13 @@ public class SqliteResource {
       Statement statement = connection.createStatement();
       statement.setQueryTimeout(30);
       SQL = "select TwitterID from TwitterIDs\n"
-          + "where UpdateFlg = '1'";
+          + "where UpdateFlg = '" + UpdateFlg + "'";
       ResultSet result = statement.executeQuery(SQL);
       while(result.next()) {
         TwitterIDList.add(result.getString(1));
       }
     }catch (SQLException e) {
-      e.printStackTrace(pw);
-      pw.flush();
-      System.out.println(StackTrace.toString());
-      System.out.println("--Missing SQL------------------------");
-      System.out.println(SQL);
-      System.out.println("-------------------------------------");
-      System.exit(1);
+      outputSQLStackTrace(e,SQL);
     }
     return TwitterIDList;
   }
@@ -298,13 +278,7 @@ public class SqliteResource {
       statement.close();
       connection.close();
     }catch (SQLException e){
-      e.printStackTrace(pw);
-      pw.flush();
-      System.out.println(StackTrace.toString());
-      System.out.println("--Missing SQL------------------------");
-      System.out.println(SQL);
-      System.out.println("-------------------------------------");
-      System.exit(1);
+      outputSQLStackTrace(e,SQL);
     }
     return TwitterIDList;
   }
@@ -376,14 +350,7 @@ public class SqliteResource {
       statement.close();
       connection.close();
     }catch (SQLException e){
-      e.printStackTrace(pw);
-      pw.flush();
-      System.out.println(StackTrace.toString());
-      System.out.println("--Missing SQL------------------------");
-      System.out.println(SQL);
-      System.out.println("-------------------------------------");
-      System.exit(1);
-      return false;
+      outputSQLStackTrace(e,SQL);
     }
     return true;
   }
@@ -409,67 +376,11 @@ public class SqliteResource {
         userList.add(result.getString(1));
       }
     }catch (SQLException e){
-      e.printStackTrace(pw);
-      pw.flush();
-      System.out.println("--Missing SQL------------------------");
-      System.out.println(SQL);
-      System.out.println("-------------------------------------");
+      outputSQLStackTrace(e,SQL);
     }
     return userList;
   }
 
-  public void insertBufferTwitterIDs(List<String> IDList) {
-    String SQL = "";
-    try {
-      Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath,getProperties());
-      Statement statement = connection.createStatement();
-      statement.setQueryTimeout(30);
-      statement.execute("begin transaction;");
-      SQL = "delete from BufferTwitterIDs;";
-      statement.execute(SQL);
-      for (String temp : IDList) {
-        SQL = "insert into BufferTwitterIDs Values('" + temp + "');";
-        statement.execute(SQL);
-      }
-      statement.execute("commit;");
-      statement.close();
-      connection.close();
-    }catch (SQLException e) {
-      e.printStackTrace(pw);
-      pw.flush();
-      System.out.println(StackTrace.toString());
-      System.out.println("--Missing SQL------------------------");
-      System.out.println(SQL);
-      System.out.println("-------------------------------------");
-      System.exit(1);
-    }
-  }
-
-  public List<String> getBufferTwitterIDs() {
-    String SQL = "";
-    List<String> IDList = new ArrayList<String>(); 
-    try {
-      Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath,getProperties());
-      Statement statement = connection.createStatement();
-      statement.setQueryTimeout(30);
-      SQL = "select * from BufferTwitterIDs";
-      ResultSet result = statement.executeQuery(SQL);
-      while (result.next()) {
-        IDList.add(result.getString(1));
-      }
-      statement.close();
-      connection.close();
-    }catch (SQLException e) {
-      e.printStackTrace(pw);
-      pw.flush();
-      System.out.println(StackTrace.toString());
-      System.out.println("--Missing SQL------------------------");
-      System.out.println(SQL);
-      System.out.println("-------------------------------------");
-      System.exit(1);
-    }
-    return IDList;
-  }
   
 }
 

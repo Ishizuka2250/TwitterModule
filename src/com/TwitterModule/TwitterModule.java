@@ -4,76 +4,54 @@ import java.io.*;
 import java.util.*;
 import java.util.regex.*;
 import java.text.*;
+
 import twitter4j.*;
 import twitter4j.auth.*;
 import twitter4j.conf.*;
 
-//TwitterAPI制限 → 15分 
 public class TwitterModule {
   private static String Consumer_key = "WOb0qHqJkttrUyYaBfFI2YNN7";
   private static String Consumer_secret = "ysjxfE5dzqYJyHPFdzBCYnLnrJvDr3g9FPgj60oTZwIZG7erBU";
   private static String Access_token = "2591693293-78onB1jTcVxq7ovrIOOEhSfKLa77AUmpITh02QP";
   private static String Access_token_secret = "bgV82VTVMsss7HAVWJg95YpiEiGEZelKmhlSEf413Q7pf";
   private static SqliteResource sqlite;
+  private static long TwitterApiStopTimes = (15 * 60 * 1000) + (30 * 1000);//TwitterAPI制限 → 15分
   
   public static void main(String args[]) throws TwitterException,IOException,ClassNotFoundException{   
-    TwitterFactory twitterFactory = new TwitterFactory(twitterConfigure().build());
-    Twitter twitter = twitterFactory.getInstance();
     sqlite = new SqliteResource();
-    long start,end,followerIDsTime,followIDsTime,TwitterIDsTime;
-    //outputText(getFollowerInfo());
-    //sqlite.updateGetUserInfoFlg("3136594242", 0);
-    //System.out.println(getUserInfo(twitter,"746272913968496641"));
-    //sqlite.insertUserInfo("746272913968496641", "'746272913968496641','Zafarr Abbas','thezeenagari','Front-End Developer at Uconnect Pvt. Ltd.','14','1747','1108','22','Gilgit-Baltistan, Pakistan','Fri Jun 24 18:25:02 JST 2016','000000'");
-    /*List<String> test = new ArrayList<String>();
-    test.add("aaa");
-    test.add("sss");
-    HashMap<String,String> testMap = new HashMap<String,String>();
-    test.forEach(s -> testMap.put(s, s));
-    System.out.println(testMap.get("aaa"));*/
-    
-    //List<String> IDLists = getFollowerIDList();
-    //sqlite.insertFollowerIDs(IDLists);
-    //List<String> IDList = sqlite.getTwitterIDList(1);
-    
-    /*System.out.println("insert TwitterIDs");
-    start = System.currentTimeMillis();
-    List<String> FollowerIDList = getTwitterFollowerIDList();
-    sqlite.insertTwitterIDs(FollowerIDList,1);
-    end = System.currentTimeMillis();
-    followerIDsTime = end - start;
-    
-    System.out.println("insert TwitterIDs");
-    start = System.currentTimeMillis();
-    List<String> FollowIDList = getTwitterFollowIDList();
-    sqlite.insertTwitterIDs(FollowIDList,2);
-    //getTwitterUserInfo(IDList);
-    end = System.currentTimeMillis();
-    followIDsTime = end - start;*/
+    long start,end,TwitterIDsTime;
     
     start = System.currentTimeMillis();
-    List<String> TwitterAllIDs = sqlite.getTwitterIDAll();
-    //List<String> TwitterAllIDs = new ArrayList<String>();
-    //TwitterAllIDs.add("1287779750");
-    //TwitterAllIDs.add("2739548718");
-    getTwitterUserInfo(TwitterAllIDs);
-    //sqlite.insertTwitterIDs(TwitterAllIDs, 0);
-    //sqlite.updateFlgsOn(TwitterAllIDs);
+    twitterUserInfoUpdate();
     end = System.currentTimeMillis();
     TwitterIDsTime = end - start;
     System.out.println(TwitterIDsTime + "ms");
-    
-    /*
-    start = System.currentTimeMillis();
-    List<String> TwitterUpdateIDList = sqlite.getUpdateUserIDList();
-    System.out.println("size:" + TwitterUpdateIDList.size());
-    end = System.currentTimeMillis();
-    TwitterIDsTime = end - start;*/
-    
-    //System.out.println("followerInsert:" + followerIDsTime + "\n" + "followinsert:" + followIDsTime + "\n" + "TwitterIDsinsert" + TwitterIDsTime);
-    //System.out.println(TwitterIDsTime + "ms");
     System.out.println("done!");
-  } 
+  }
+  
+  public static void twitterUserInfoUpdateAll() throws TwitterException {
+    List<String> allIDList = sqlite.getTwitterIDAll();
+    sqlite.updateFlgsOn(allIDList);
+    twitterUserInfoUpdate();
+  }
+  
+  public static void twitterUserInfoUpdate() throws TwitterException {
+    List<String> updateIDList = sqlite.getUpdateUserIDList(1);
+    
+    //uploadFlg=1のものを処理
+    while (updateIDList.size() != 0) {
+      if(getTwitterUserInfo(updateIDList) == true) {
+        System.out.println("bufferに残ってたIDのUserInfo取得完了");
+        break;
+      }else{
+        System.out.println("API制限により処理を中断しました。\n-> " + TwitterApiStopTimes + "ms停止");
+        try {
+          Thread.sleep(TwitterApiStopTimes);
+        }catch (InterruptedException e){}
+        updateIDList = sqlite.getUpdateUserIDList(1);
+      }
+    }
+  }
  
   public static String inputString () {
     String input;
@@ -159,11 +137,10 @@ public class TwitterModule {
     }
     //updateのしょり
     System.out.println("ユーザー取得完了：" + getUserInfoOK + "\n保留：" + onHold);
-    sqlite.insertBufferTwitterIDs(APILimitUserList);
+    //sqlite.insertBufferTwitterIDs(APILimitUserList);
     sqlite.updateUserInfo(UserInfoMap);
     
     if(buffer.equals("-1")) {
-      System.out.println("API制限により処理を中断しました。");
       return false;
     }
     System.out.println("フォロワーIDの取得が完了しました。");
