@@ -22,7 +22,9 @@ public class TwitterModule {
     long start,end,TwitterIDsTime;
     
     start = System.currentTimeMillis();
-    twitterUserInfoUpdate();
+    //twitterUserInfoUpdate();
+    followUserCheck();
+    //System.out.println(cutString("a,b,c,d,e",",",3));
     end = System.currentTimeMillis();
     TwitterIDsTime = end - start;
     System.out.println(TwitterIDsTime + "ms");
@@ -41,7 +43,6 @@ public class TwitterModule {
     //uploadFlg=1のものを処理
     while (updateIDList.size() != 0) {
       if(getTwitterUserInfo(updateIDList) == true) {
-        System.out.println("bufferに残ってたIDのUserInfo取得完了");
         break;
       }else{
         System.out.println("API制限により処理を中断しました。\n-> " + TwitterApiStopTimes + "ms停止");
@@ -52,6 +53,7 @@ public class TwitterModule {
       }
     }
   }
+  
  
   public static String inputString () {
     String input;
@@ -75,6 +77,51 @@ public class TwitterModule {
     confbuilder.setOAuthAccessTokenSecret(Access_token_secret);
     
     return confbuilder;
+  }
+
+  public static void followUserCheck() throws TwitterException {
+    List<String> nowFollowIDList = new ArrayList<String>();
+    List<String> nowFollowerIDList = new ArrayList<String>();
+    Map<String,String> oldFollowIDMap = new HashMap<String,String>();
+    Map<String,String> oldFollowerIDMap = new HashMap<String,String>();
+    Map<String,String> oldTwitterIDMap = new HashMap<String,String>();
+    List<String> addFollowIDList = new ArrayList<String>();
+    List<String> addFollowerIDList = new ArrayList<String>();
+    Map<String,String> addTwitterIDMap = new HashMap<String,String>();
+    List<String> addTwitterIDList = new ArrayList<String>();
+    
+    nowFollowIDList = getTwitterFollowIDList();
+    nowFollowerIDList = getTwitterFollowerIDList();
+    sqlite.getTwitterIDList(0).forEach(s -> oldFollowerIDMap.put(s, s));
+    sqlite.getTwitterIDList(1).forEach(s -> oldFollowIDMap.put(s, s));
+    sqlite.getTwitterIDAll().forEach(s -> oldTwitterIDMap.put(s, s));
+    
+    for(String id : nowFollowerIDList) {
+      if(oldFollowerIDMap.get(id) == null) {
+        addFollowerIDList.add(id);
+        if(oldTwitterIDMap.get(id) == null) {
+          addTwitterIDMap.put(id, "follower");
+        }
+      }
+    }
+    for(String id : nowFollowIDList) {
+      if(oldFollowIDMap.get(id) == null) {
+        addFollowIDList.add(id);
+        if((oldTwitterIDMap.get(id) == null) && (addTwitterIDMap.get(id) == null)) {
+          addTwitterIDMap.put(id, "follow");
+        }
+      }
+    }
+    addTwitterIDMap.forEach((k,v) -> addTwitterIDList.add(k));
+    
+    if(addFollowerIDList.size() != 0) sqlite.insertTwitterIDs(addFollowerIDList, 1);
+    if(addFollowIDList.size() != 0) sqlite.insertTwitterIDs(addFollowIDList, 2);
+    if(addTwitterIDList.size() != 0) {
+      sqlite.insertTwitterIDs(addTwitterIDList, 0);
+      sqlite.updateFlgsOn(addTwitterIDList);
+      twitterUserInfoUpdate();
+    }
+    if((addFollowIDList.size() == 0) && (addFollowerIDList.size() == 0) && (addTwitterIDList.size() == 0)) System.out.println("新規追加IDはありません。");
   }
   
   public static List<String> getTwitterFollowerIDList() throws TwitterException {
@@ -113,7 +160,7 @@ public class TwitterModule {
     TwitterFactory twitterFactory = new TwitterFactory(twitterConfigure().build());
     Twitter twitter = twitterFactory.getInstance();
     Map<String, String> UserInfoMap = new HashMap<String, String>();
-    List<String> APILimitUserList = new ArrayList<String>();
+    List<String> OnHoldUserList = new ArrayList<String>();
     Boolean APILimit = false; 
     String buffer="";
     long getUserInfoOK = 0L;
@@ -126,18 +173,18 @@ public class TwitterModule {
           UserInfoMap.put(id, buffer);
           getUserInfoOK++;
         }else{
-          APILimitUserList.add(id);
+          OnHoldUserList.add(id);
           onHold++;
           APILimit = true;
         }
       }else {
-        APILimitUserList.add(id);
+        OnHoldUserList.add(id);
         onHold++;
       }
     }
     //updateのしょり
     System.out.println("ユーザー取得完了：" + getUserInfoOK + "\n保留：" + onHold);
-    //sqlite.insertBufferTwitterIDs(APILimitUserList);
+    //sqlite.insertBufferTwitterIDs(OnHoldUserList);
     sqlite.updateUserInfo(UserInfoMap);
     
     if(buffer.equals("-1")) {
@@ -197,6 +244,15 @@ public class TwitterModule {
     Pattern pat = Pattern.compile(reg);
     Matcher mat = pat.matcher(str);
     return mat.replaceAll(replacement);
+  }
+  
+  public static String cutString(String str,String delimiter, int field) {
+    int n = 0;
+    for(String temp : str.split(delimiter)) {
+      if(field == n) return temp;
+      else n++;
+    }
+    return "";
   }
 
   public static String StringToUnicode(String str) {

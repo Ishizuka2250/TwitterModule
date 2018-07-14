@@ -185,13 +185,13 @@ public class SqliteResource {
       for(String id : IDList) {
         if(insertPattern == 0) {
           SQL = "select Count(*) from TwitterIDs\n"
-              + "where TwitterID = " + id;
+              + "where TwitterID = '" + id + "'";
         }else if(insertPattern == 1) {
           SQL = "select Count(*) from TwitterFollowerIDs\n"
-              + "where TwitterID = " + id;
+              + "where TwitterID = '" + id + "'";
         }else if(insertPattern == 2) {
           SQL = "select Count(*) from TwitterFollowIDs\n"
-              + "where TwitterID = " + id;
+              + "where TwitterID = '" + id + "'";
         }else {
           System.out.println("Unknown insertPattern -- " + insertPattern + "\nabort.");
           statement.close();
@@ -366,10 +366,10 @@ public class SqliteResource {
       statement.setQueryTimeout(30);
       if(UserListFlg == 0){
         SQL = "select * from TwitterFollowerIDs\n"
-            + "where GetUserInfo = 0";
+            + "where RemoveFollowFlg = 0";
       }else if(UserListFlg == 1) {
         SQL = "select * from TwitterFollowIDs\n"
-            + "where GetUserInfo = 0";
+            + "where RemoveFollowFlg = 0";
       }
       ResultSet result = statement.executeQuery(SQL);
       while(result.next()) {
