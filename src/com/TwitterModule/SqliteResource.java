@@ -53,7 +53,6 @@ public class SqliteResource {
     boolean TwitterUserInfoURLsExists = false;
     boolean UnReturnFollowIDsExists = false;
     boolean UnFollowIDsExists = false;
-    boolean BufferTwitterIDsExists = false;
     boolean TableCheckStatus = true;
     String SQL = "";
     
@@ -260,7 +259,9 @@ public class SqliteResource {
     return TwitterIDList;
   }
   
-  public List<String> getTwitterIDAll() {
+  //RemoveUser True :削除されたUserも表示
+  //RemoveUser False:削除されたUserは表示しない
+  public List<String> getTwitterIDAll(boolean RemoveUser) {
     List<String> TwitterIDList = new ArrayList<String>();
     String SQL = "";
     
@@ -268,9 +269,17 @@ public class SqliteResource {
       Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath);
       Statement statement = connection.createStatement();
       statement.setQueryTimeout(30);
-      SQL = "select TwitterID from TwitterFollowerIDs\n"
-          + "union\n"
-          + "select TwitterID from TwitterFollowIDs;";
+      if(RemoveUser) {
+        SQL = "select TwitterID from TwitterFollowerIDs\n"
+            + "union\n"
+            + "select TwitterID from TwitterFollowIDs;";
+      }else{
+        SQL = "select TwitterID from TwitterFollowerIDs\n"
+            + "where RemoveFlg = 0\n"
+            + "union\n"
+            + "select TwitterID from TwitterFollowIDs\n"
+            + "where RemoveFlg = 0";
+      }
       ResultSet result = statement.executeQuery(SQL);
       while(result.next()) {
         TwitterIDList.add(result.getString(1));
@@ -302,8 +311,8 @@ public class SqliteResource {
         result.next();
         if(result.getInt(1) == 0) {
           //TwitterUserInfo新規登録時
-          //アカBANされているUserIDかどうかの判定 
-          if(UserIDMap.get(temp).equals("1") == false) {//ユーザー情報正常取得時
+          //アカBANされているUserIDかどうかの判定[UserIDMap.get(temp) = "BAN" → アカBan] 
+          if(UserIDMap.get(temp).equals("BAN") == false) {//ユーザー情報正常取得時(NotアカBAN)
             SQL = "insert into TwitterUserInfo values(" + UserIDMap.get(temp) + ");";
             statement.execute(SQL);
             SQL = "update TwitterIDs set UpdateUserInfoTimes = 1,UpdateTime = " + sdf.format(cal.getTime()) + ",  UpdateFlg = '0', BanUserFlg = '0'\n"
@@ -320,7 +329,7 @@ public class SqliteResource {
           }
           statement.execute(SQL);
         }else{//既にユーザー情報が登録済み
-          //過去データの削除
+          //過去データの物理削除
           SQL = "delete from TwitterUserInfo\n"
               + "where TwitterID = '" + temp + "'";
           statement.execute(SQL);
@@ -330,8 +339,8 @@ public class SqliteResource {
           result = statement.executeQuery(SQL);
           result.next();
           updateUserInfoTimes = result.getInt(2);
-          //アカBANされているUserIDかどうかの判定 [UserIDMap.get(temp) = "1" → アカBan]
-          if(UserIDMap.get(temp).equals("1") == false) {//ユーザー情報正常取得時
+          //アカBANされているUserIDかどうかの判定 [UserIDMap.get(temp) = "BAN" → アカBan]
+          if(UserIDMap.get(temp).equals("BAN") == false) {//ユーザー情報正常取得時
             //User情報更新
             SQL = "insert into TwitterUserInfo values(" + UserIDMap.get(temp) + ");";
             statement.execute(SQL);
@@ -347,6 +356,7 @@ public class SqliteResource {
         }
       }
       statement.execute("commit");
+      
       statement.close();
       connection.close();
     }catch (SQLException e){
@@ -355,8 +365,9 @@ public class SqliteResource {
     return true;
   }
 
-  //UserListFlg = 0 follower
-  //UserListFlg = 1 follow
+  //UserListFlg = 0 twitterIDs
+  //UserListFlg = 1 follower
+  //UserListFlg = 2 follow
   public List<String> getTwitterIDList(int UserListFlg) {
     List<String> userList = new ArrayList<String>();
     String SQL="";
@@ -364,10 +375,13 @@ public class SqliteResource {
       Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath);
       Statement statement = connection.createStatement();
       statement.setQueryTimeout(30);
-      if(UserListFlg == 0){
+      if(UserListFlg == 0) {
+        SQL = "select * from TwitterIDs\n"
+            + "where RemoveFlg = 0";
+      }else if(UserListFlg == 1){
         SQL = "select * from TwitterFollowerIDs\n"
             + "where RemoveFollowFlg = 0";
-      }else if(UserListFlg == 1) {
+      }else if(UserListFlg == 2) {
         SQL = "select * from TwitterFollowIDs\n"
             + "where RemoveFollowFlg = 0";
       }
@@ -375,12 +389,52 @@ public class SqliteResource {
       while(result.next()) {
         userList.add(result.getString(1));
       }
+      result.close();
+      statement.close();
+      connection.close();
     }catch (SQLException e){
       outputSQLStackTrace(e,SQL);
     }
     return userList;
   }
-
+  
+  //UserListFlg = 0 TwitterIDs
+  //UserListFlg = 1 FollowerID
+  //UserListFlg = 2 followID
+  public void updateRemoveFlgs(List<String> UserIDList, int UserListFlg) {
+    String SQL,userIDs;
+    SQL = userIDs = "";
+    try {
+      Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath);
+      Statement statement = connection.createStatement();
+      statement.setQueryTimeout(30);
+      
+      //UserIDList.forEach(s -> {if(userIDs.equals("")) {userIDs = "'" + s;} else {userIDs = "','" + userIDs + "'";}});
+      for(String temp : UserIDList) {
+        if(userIDs.equals("")) userIDs = "'" + temp + "'";
+        else userIDs = userIDs + ",'" + temp + "'";
+      }
+      if(UserListFlg == 0) {
+        SQL = "update TwitterIDs Set RemoveFlg = 1\n"
+            + "where TwitterID in(" + userIDs + ")";
+      }else if(UserListFlg == 1) {
+        SQL = "update TwitterFollowerIDs Set RemoveFollowFlg = 1\n"
+            + "where TwitterID in(" + userIDs + ")";
+      }else if(UserListFlg == 2) {
+        SQL = "update TwitterFollowIDs Set RemoveFollowFlg = 1\n"
+            + "where TwitterID in(" + userIDs + ")";
+      }
+      statement.execute("begin transaction;");
+      statement.execute(SQL);
+      statement.execute("commit;");
+      
+      statement.close();
+      connection.close();
+    }catch (SQLException e){
+      outputSQLStackTrace(e,SQL);
+    }
+    
+  }
   
 }
 
