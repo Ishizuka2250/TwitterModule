@@ -10,34 +10,46 @@ import twitter4j.auth.*;
 import twitter4j.conf.*;
 
 public class TwitterModule {
-  private static String Consumer_key = "WOb0qHqJkttrUyYaBfFI2YNN7";
-  private static String Consumer_secret = "ysjxfE5dzqYJyHPFdzBCYnLnrJvDr3g9FPgj60oTZwIZG7erBU";
-  private static String Access_token = "2591693293-78onB1jTcVxq7ovrIOOEhSfKLa77AUmpITh02QP";
-  private static String Access_token_secret = "bgV82VTVMsss7HAVWJg95YpiEiGEZelKmhlSEf413Q7pf";
+  private static String ConsumerKey;
+  private static String ConsumerSecret;
+  private static String AccessToken;
+  private static String AccessTokenSecret;
   private static SqliteResource sqlite;
+  private static APIKey key;
+  private static String APIKeyPath = "D:/twitterApp/APIKey.xml";
   private static long TwitterApiStopTimes = (15 * 60 * 1000) + (30 * 1000);// TwitterAPIêßå¿Å®15ï™
 
   public static void main(String args[]) throws TwitterException, IOException,ClassNotFoundException {
-    sqlite = new SqliteResource();
     long start, end, TwitterIDsTime;
-
+    initTwitterModule();
+    
     start = System.currentTimeMillis();
     //twitterUserInfoUpdate();
-    //twitterAddUserIDCheck();
-    twitterRemoveUserIDCheck();
+    twitterAddUserIDCheck();
+    //twitterRemoveUserIDCheck();
     end = System.currentTimeMillis();
     TwitterIDsTime = end - start;
     System.out.println(TwitterIDsTime + "ms");
     System.out.println("done!");
   }
+  
+  private static void initTwitterModule() throws ClassNotFoundException {
+    sqlite = new SqliteResource();
+    key = new APIKey(APIKeyPath);
+    
+    ConsumerKey = key.getConsumerKey();
+    ConsumerSecret = key.getConsumerSecret();
+    AccessToken = key.getAccessToken();
+    AccessTokenSecret = key.getAccessTokenSecret();
+  }
 
   public static ConfigurationBuilder twitterConfigure() {
     ConfigurationBuilder confbuilder = new ConfigurationBuilder();
     confbuilder.setDebugEnabled(true);
-    confbuilder.setOAuthConsumerKey(Consumer_key);
-    confbuilder.setOAuthConsumerSecret(Consumer_secret);
-    confbuilder.setOAuthAccessToken(Access_token);
-    confbuilder.setOAuthAccessTokenSecret(Access_token_secret);
+    confbuilder.setOAuthConsumerKey(ConsumerKey);
+    confbuilder.setOAuthConsumerSecret(ConsumerSecret);
+    confbuilder.setOAuthAccessToken(AccessToken);
+    confbuilder.setOAuthAccessTokenSecret(AccessTokenSecret);
     return confbuilder;
   }
 
