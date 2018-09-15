@@ -42,10 +42,11 @@ public class APIKey {
     DocumentBuilderFactory documentBuilderfactory = DocumentBuilderFactory.newInstance();
     DocumentBuilder documentBuilder = documentBuilderfactory.newDocumentBuilder();
     Document document = documentBuilder.parse(new File(APIKeyXmlPath));
-    
+    int userCount = 0;
     Node apiKeyRoot = document.getDocumentElement();
     Node userNode = apiKeyRoot.getFirstChild();
     Node keyNode;
+    
     while(userNode != null) {
       //System.out.println("attribute:" + getAttribute(userNode,"user_name"));
       if(userNode.getNodeType() == Node.ELEMENT_NODE) {
@@ -56,6 +57,7 @@ public class APIKey {
             switch (keyNode.getNodeName()) {
               case "use":
                 use = getTextNode(keyNode.getFirstChild());
+                if(Integer.parseInt(use) == 1) userCount++;
                 break;
               case "consumer_key":
                 ConsumerKey = getTextNode(keyNode.getFirstChild());
@@ -76,6 +78,7 @@ public class APIKey {
       }
       userNode = userNode.getNextSibling();
     }
+    
   }
   
   private String getTextNode(Node node) {

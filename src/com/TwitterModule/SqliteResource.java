@@ -17,16 +17,18 @@ import java.util.Map;
 import java.util.Properties;
 
 public class SqliteResource {
-  private String SqlitePath = "D:/twitterApp/Twitter.sqlite";
-  private String SqliteDirPath = "D:/twitterApp";
+  private String SqliteDirPath;
+  private String SqlitePath;
   private StringWriter StackTrace = new StringWriter();
   private PrintWriter pw = new PrintWriter(StackTrace);
   
-  SqliteResource() throws ClassNotFoundException {
-    InitSqlite();
+  SqliteResource(String UserName) throws ClassNotFoundException {
+    SqliteDirPath = "D:/twitterApp";
+    SqlitePath = SqliteDirPath +  "/" + UserName + ".sqlite";
+    InitSqlite(UserName);
   }
   
-  private void InitSqlite() throws ClassNotFoundException  {
+  private void InitSqlite(String UserName) throws ClassNotFoundException  {
     Class.forName("org.sqlite.JDBC");
     File existSqlite = new File(SqlitePath);
     File existSqliteDir = new File(SqliteDirPath);
@@ -35,7 +37,7 @@ public class SqliteResource {
       try {
         FileWriter emptySqlite = new FileWriter(existSqlite,false);
         emptySqlite.close();
-        System.out.println("D:/twitterApp/にTwitter.Sqlite を作成しました。");
+        System.out.println("D:/twitterApp/に" + UserName + ".Sqlite を作成しました。");
       } catch (IOException e) {
         e.printStackTrace(pw);
         pw.flush();
@@ -170,7 +172,7 @@ public class SqliteResource {
   //insertPattern = 0 TwitterIDs
   //insertPattern = 1 FollowerID
   //insertPattern = 2 followID
-  public void insertTwitterIDs(List<String> IDList, int insertPattern) {
+  public void insertTwitterID(List<String> IDList, int insertPattern) {
     String SQL = "";
     long count;
     Calendar cal = Calendar.getInstance();
@@ -259,8 +261,8 @@ public class SqliteResource {
     return TwitterIDList;
   }
   
-  //RemoveUser True :削除されたUserも表示
-  //RemoveUser False:削除されたUserは表示しない
+  //RemoveUser True :TwitterIDsに登録されている全ユーザーを対象とする
+  //RemoveUser False:フォロー・フォロワーでもない他人ユーザー かつ アカウントが凍結されているユーザーは対象外とする
   public List<String> getTwitterIDAll(boolean RemoveUser) {
     List<String> TwitterIDList = new ArrayList<String>();
     String SQL = "";
@@ -270,16 +272,35 @@ public class SqliteResource {
       Statement statement = connection.createStatement();
       statement.setQueryTimeout(30);
       if(RemoveUser) {
-        SQL = "select TwitterID from TwitterFollowerIDs\n"
-            + "union\n"
-            + "select TwitterID from TwitterFollowIDs;";
+        SQL = "select TwitterIDs.TwitterID from TwitterIDs;";
       }else{
-        SQL = "select TwitterID from TwitterFollowerIDs\n"
-            + "where RemoveFlg = 0\n"
-            + "union\n"
-            + "select TwitterID from TwitterFollowIDs\n"
-            + "where RemoveFlg = 0";
+        SQL = "select TwitterIDs.TwitterID from TwitterIDs\n"
+            + "where TwitterIDs.RemoveFlg = 0\n"
+            + "and TwitterIDs.BanUserFlg = 0;";
       }
+      ResultSet result = statement.executeQuery(SQL);
+      while(result.next()) {
+        TwitterIDList.add(result.getString(1));
+      }
+      statement.close();
+      connection.close();
+    }catch (SQLException e){
+      outputSQLStackTrace(e,SQL);
+    }
+    return TwitterIDList;
+  }
+  
+  //TwitterIDsに登録されており、アカウント凍結されているユーザーを取得する
+  public List<String> getTwitterIDBan() {
+    List<String> TwitterIDList = new ArrayList<String>();
+    String SQL = "";
+    
+    try {
+      Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath);
+      Statement statement = connection.createStatement();
+      statement.setQueryTimeout(30);
+      SQL = "select TwitterIDs.TwitterID from TwitterIDs\n"
+          + "where BanUserFlg = 1;";
       ResultSet result = statement.executeQuery(SQL);
       while(result.next()) {
         TwitterIDList.add(result.getString(1));
@@ -368,6 +389,9 @@ public class SqliteResource {
   //UserListFlg = 0 twitterIDs
   //UserListFlg = 1 follower
   //UserListFlg = 2 follow
+  //※TwitterIDs:フォローもフォロバもされていないユーザー かつ 凍結されているユーザーは除外する。
+  //※TwitterFollowerIDs:フォロバされていないユーザー かつ 凍結されているユーザー は除外する。
+  //※TwitterFollowIDs:リフォローしているユーザー かつ 凍結されているユーザー は除外する。
   public List<String> getTwitterIDList(int UserListFlg) {
     List<String> userList = new ArrayList<String>();
     String SQL="";
@@ -376,14 +400,21 @@ public class SqliteResource {
       Statement statement = connection.createStatement();
       statement.setQueryTimeout(30);
       if(UserListFlg == 0) {
-        SQL = "select * from TwitterIDs\n"
-            + "where RemoveFlg = 0";
+        SQL = "select TwitterIDs.TwitterID from TwitterIDs\n"
+            + "where TwitterIDs.BanUserFlg = 0\n"
+            + "and TwitterIDs.RemoveFlg = 0;";
       }else if(UserListFlg == 1){
-        SQL = "select * from TwitterFollowerIDs\n"
-            + "where RemoveFollowFlg = 0";
+        SQL = "select TwitterFollowerIDs.TwitterID from TwitterFollowerIDs\n"
+            + "left outer join TwitterIDs\n"
+            + "on TwitterFollowerIDs.TwitterID = TwitterIDs.TwitterID\n"
+            + "where TwitterFollowerIDs.RemoveFollowFlg = 0\n"
+            + "and TwitterIDs.BanUserFlg = 0;";
       }else if(UserListFlg == 2) {
-        SQL = "select * from TwitterFollowIDs\n"
-            + "where RemoveFollowFlg = 0";
+        SQL = "select TwitterFollowIDs.TwitterID from TwitterFollowIDs\n"
+            + "left outer join TwitterIDs\n"
+            + "on TwitterFollowIDs.TwitterID = TwitterIDs.TwitterID\n"
+            + "where TwitterFollowIDs.RemoveFollowFlg = 0\n"
+            + "and TwitterIDs.BanUserFlg = 0;"; 
       }
       ResultSet result = statement.executeQuery(SQL);
       while(result.next()) {
@@ -401,9 +432,15 @@ public class SqliteResource {
   //UserListFlg = 0 TwitterIDs
   //UserListFlg = 1 FollowerID
   //UserListFlg = 2 followID
-  public void updateRemoveFlgs(List<String> UserIDList, int UserListFlg) {
+  //RemoveFlg = true Remove系のフラグを0にする
+  //RemoveFlg = false Remove系のフラグを1にする
+  public void updateRemoveFlgs(List<String> UserIDList, int UserListFlg, boolean RemoveFlg) {
+    Calendar cal = Calendar.getInstance();
+    SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
     String SQL,userIDs;
+    int removeValue = 0;
     SQL = userIDs = "";
+    if(!RemoveFlg) removeValue = 1; 
     try {
       Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath);
       Statement statement = connection.createStatement();
@@ -415,16 +452,19 @@ public class SqliteResource {
         else userIDs = userIDs + ",'" + temp + "'";
       }
       if(UserListFlg == 0) {
-        SQL = "update TwitterIDs Set RemoveFlg = 1\n"
+        SQL = "update TwitterIDs Set RemoveFlg = " + removeValue + "\n"
             + "where TwitterID in(" + userIDs + ")";
       }else if(UserListFlg == 1) {
-        SQL = "update TwitterFollowerIDs Set RemoveFollowFlg = 1\n"
+        SQL = "update TwitterFollowerIDs Set RemoveFollowFlg = " + removeValue + "\n"
             + "where TwitterID in(" + userIDs + ")";
       }else if(UserListFlg == 2) {
-        SQL = "update TwitterFollowIDs Set RemoveFollowFlg = 1\n"
+        SQL = "update TwitterFollowIDs Set RemoveFollowFlg = " + removeValue + "\n"
             + "where TwitterID in(" + userIDs + ")";
       }
       statement.execute("begin transaction;");
+      statement.execute(SQL);
+      SQL = "update TwitterIDs set UpdateTime = " + sdf.format(cal.getTime()) + "\n"
+          + "where TwitterID in(" + userIDs + ")";
       statement.execute(SQL);
       statement.execute("commit;");
       
