@@ -30,6 +30,7 @@ public class TwitterModule {
     twitterAddUserIDCheck();
     twitterRemoveUserIDCheck();
     //selectUserInfoUpdate(2);
+    //System.out.println(getUserInfo(twitter,"723074645046366212"));
     end = System.currentTimeMillis();
     TwitterIDsTime = end - start;
     System.out.println(TwitterIDsTime + "ms");
@@ -64,9 +65,10 @@ public class TwitterModule {
    * */
   public static void selectUserInfoUpdate(int FilterPattern) throws TwitterException {
     List<String> IDList = new ArrayList<String>();
-    if(FilterPattern == 0) IDList = sqlite.getTwitterIDAll(true);
-    else if(FilterPattern == 1) IDList = sqlite.getTwitterIDAll(false);
+    if(FilterPattern == 0) IDList = sqlite.getTwitterIDList(0,true);
+    else if(FilterPattern == 1) IDList = sqlite.getTwitterIDList(0,false);
     else if(FilterPattern == 2) IDList = sqlite.getTwitterIDBan();
+    //else if(FilterPattern == 3) IDList = sqlite.getTwitterID
     else {
       System.out.println("error:Unknown FilterPattern.");
       System.exit(1);
@@ -149,7 +151,7 @@ public class TwitterModule {
       String userLocation = replaceStr(user.getLocation(), "'", "''");
       String userCreatedAt = String.valueOf(user.getCreatedAt());
       String userBackGroundColor = String.valueOf(user.getProfileBackgroundColor());
-      System.out.println(id + ":[" + userName + "]‚Ìî•ñ‚ðŽæ“¾‚µ‚Ü‚µ‚½B " + StringToUnicode(userName));
+      System.out.println(id + ":[" + userName + "]‚Ìî•ñ‚ðŽæ“¾‚µ‚Ü‚µ‚½B ");
       return "'" + id + "','" + userName + "','" + userScreenName + "','"
           + userDescription + "','" + userTweetCount + "','" + userFollowCount
           + "','" + userFollowerCount + "','" + userFavouritesCount + "','"
@@ -199,10 +201,10 @@ public class TwitterModule {
 
     nowFollowIDList = getTwitterFollowIDList();
     nowFollowerIDList = getTwitterFollowerIDList();
-    sqlite.getTwitterIDList(0).forEach(s -> oldTwitterIDMap.put(s, s));
-    sqlite.getTwitterIDList(1).forEach(s -> oldFollowerIDMap.put(s, s));
-    sqlite.getTwitterIDList(2).forEach(s -> oldFollowIDMap.put(s, s));
-
+    sqlite.getTwitterIDList(0,true).forEach(s -> oldTwitterIDMap.put(s, s));
+    sqlite.getTwitterIDList(1,true).forEach(s -> oldFollowerIDMap.put(s, s));
+    sqlite.getTwitterIDList(2,true).forEach(s -> oldFollowIDMap.put(s, s));
+    
     for (String id : nowFollowerIDList) {
       if (oldFollowerIDMap.get(id) == null) {
         addFollowerIDList.add(id);
@@ -220,7 +222,7 @@ public class TwitterModule {
       }
     }
     addTwitterIDMap.forEach((k, v) -> addTwitterIDList.add(k));
-
+    
     if (addFollowerIDList.size() != 0) sqlite.insertTwitterID(addFollowerIDList, 1);
     if (addFollowIDList.size() != 0) sqlite.insertTwitterID(addFollowIDList, 2);
     if (addTwitterIDList.size() != 0) {
@@ -245,9 +247,9 @@ public class TwitterModule {
     
     getTwitterFollowerIDList().forEach(s -> nowFollowerIDMap.put(s, s));
     getTwitterFollowIDList().forEach(s -> nowFollowIDMap.put(s, s));
-    oldTwitterIDList = sqlite.getTwitterIDList(0);
-    oldFollowerIDList = sqlite.getTwitterIDList(1);
-    oldFollowIDList = sqlite.getTwitterIDList(2);
+    oldTwitterIDList = sqlite.getTwitterIDList(0,false);
+    oldFollowerIDList = sqlite.getTwitterIDList(1,false);
+    oldFollowIDList = sqlite.getTwitterIDList(2,false);
     
     for (String id : oldFollowerIDList) {
       if(nowFollowerIDMap.get(id) == null) removeFollowerIDList.add(id);

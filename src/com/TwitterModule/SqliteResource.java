@@ -261,57 +261,6 @@ public class SqliteResource {
     return TwitterIDList;
   }
   
-  //RemoveUser True :TwitterIDsに登録されている全ユーザーを対象とする
-  //RemoveUser False:フォロー・フォロワーでもない他人ユーザー かつ アカウントが凍結されているユーザーは対象外とする
-  public List<String> getTwitterIDAll(boolean RemoveUser) {
-    List<String> TwitterIDList = new ArrayList<String>();
-    String SQL = "";
-    
-    try {
-      Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath);
-      Statement statement = connection.createStatement();
-      statement.setQueryTimeout(30);
-      if(RemoveUser) {
-        SQL = "select TwitterIDs.TwitterID from TwitterIDs;";
-      }else{
-        SQL = "select TwitterIDs.TwitterID from TwitterIDs\n"
-            + "where TwitterIDs.RemoveFlg = 0\n"
-            + "and TwitterIDs.BanUserFlg = 0;";
-      }
-      ResultSet result = statement.executeQuery(SQL);
-      while(result.next()) {
-        TwitterIDList.add(result.getString(1));
-      }
-      statement.close();
-      connection.close();
-    }catch (SQLException e){
-      outputSQLStackTrace(e,SQL);
-    }
-    return TwitterIDList;
-  }
-  
-  //TwitterIDsに登録されており、アカウント凍結されているユーザーを取得する
-  public List<String> getTwitterIDBan() {
-    List<String> TwitterIDList = new ArrayList<String>();
-    String SQL = "";
-    
-    try {
-      Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath);
-      Statement statement = connection.createStatement();
-      statement.setQueryTimeout(30);
-      SQL = "select TwitterIDs.TwitterID from TwitterIDs\n"
-          + "where BanUserFlg = 1;";
-      ResultSet result = statement.executeQuery(SQL);
-      while(result.next()) {
-        TwitterIDList.add(result.getString(1));
-      }
-      statement.close();
-      connection.close();
-    }catch (SQLException e){
-      outputSQLStackTrace(e,SQL);
-    }
-    return TwitterIDList;
-  }
   
   public boolean updateUserInfo(Map<String, String> UserIDMap) {
     Calendar cal = Calendar.getInstance();
@@ -389,10 +338,15 @@ public class SqliteResource {
   //UserListFlg = 0 twitterIDs
   //UserListFlg = 1 follower
   //UserListFlg = 2 follow
-  //※TwitterIDs:フォローもフォロバもされていないユーザー かつ 凍結されているユーザーは除外する。
-  //※TwitterFollowerIDs:フォロバされていないユーザー かつ 凍結されているユーザー は除外する。
-  //※TwitterFollowIDs:リフォローしているユーザー かつ 凍結されているユーザー は除外する。
-  public List<String> getTwitterIDList(int UserListFlg) {
+  //RemoveUser = true
+  //  TwitterIDs:TwitterIDsに登録されているIDをすべて取得する。
+  //  TwitterFollowerIDs:TwitterFollowerIDsに登録されているIDをすべて取得する。
+  //  TwitterFollowIDs:TwitterFollowIDsに登録されているIDをすべて取得する。
+  //RemoveUser = False
+  //  TwitterIDs:フォローもフォロバもされていないユーザー かつ 凍結されているユーザーは除外する。
+  //  TwitterFollowerIDs:フォロバされていないユーザー かつ 凍結されているユーザー は除外する。
+  //  TwitterFollowIDs:リフォローしているユーザー かつ 凍結されているユーザー は除外する。
+  public List<String> getTwitterIDList(int UserListFlg, Boolean RemoveUser) {
     List<String> userList = new ArrayList<String>();
     String SQL="";
     try{
@@ -400,21 +354,33 @@ public class SqliteResource {
       Statement statement = connection.createStatement();
       statement.setQueryTimeout(30);
       if(UserListFlg == 0) {
-        SQL = "select TwitterIDs.TwitterID from TwitterIDs\n"
-            + "where TwitterIDs.BanUserFlg = 0\n"
-            + "and TwitterIDs.RemoveFlg = 0;";
+        if(RemoveUser) {
+          SQL = "select TwitterIDs.TwitterID from TwitterIDs";
+        }else{
+          SQL = "select TwitterIDs.TwitterID from TwitterIDs\n"
+              + "where TwitterIDs.BanUserFlg = 0\n"
+              + "and TwitterIDs.RemoveFlg = 0;";
+        }
       }else if(UserListFlg == 1){
-        SQL = "select TwitterFollowerIDs.TwitterID from TwitterFollowerIDs\n"
-            + "left outer join TwitterIDs\n"
-            + "on TwitterFollowerIDs.TwitterID = TwitterIDs.TwitterID\n"
-            + "where TwitterFollowerIDs.RemoveFollowFlg = 0\n"
-            + "and TwitterIDs.BanUserFlg = 0;";
+        if(RemoveUser) {
+          SQL = "select TwitterFollowerIDs.TwitterID from TwitterFollowerIDs";
+        }else{
+          SQL = "select TwitterFollowerIDs.TwitterID from TwitterFollowerIDs\n"
+              + "left outer join TwitterIDs\n"
+              + "on TwitterFollowerIDs.TwitterID = TwitterIDs.TwitterID\n"
+              + "where TwitterFollowerIDs.RemoveFollowFlg = 0\n"
+              + "and TwitterIDs.BanUserFlg = 0;";
+        }
       }else if(UserListFlg == 2) {
-        SQL = "select TwitterFollowIDs.TwitterID from TwitterFollowIDs\n"
-            + "left outer join TwitterIDs\n"
-            + "on TwitterFollowIDs.TwitterID = TwitterIDs.TwitterID\n"
-            + "where TwitterFollowIDs.RemoveFollowFlg = 0\n"
-            + "and TwitterIDs.BanUserFlg = 0;"; 
+        if(RemoveUser) {
+          SQL = "select TwitterFollowIDs.TwitterID from TwitterFollowIDs";
+        }else{
+          SQL = "select TwitterFollowIDs.TwitterID from TwitterFollowIDs\n"
+              + "left outer join TwitterIDs\n"
+              + "on TwitterFollowIDs.TwitterID = TwitterIDs.TwitterID\n"
+              + "where TwitterFollowIDs.RemoveFollowFlg = 0\n"
+              + "and TwitterIDs.BanUserFlg = 0;";
+        }
       }
       ResultSet result = statement.executeQuery(SQL);
       while(result.next()) {
@@ -427,6 +393,52 @@ public class SqliteResource {
       outputSQLStackTrace(e,SQL);
     }
     return userList;
+  }
+
+  //TwitterIDsに登録されており、アカウント凍結されているユーザーを取得する
+  public List<String> getTwitterIDBan() {
+    List<String> TwitterIDList = new ArrayList<String>();
+    String SQL = "";
+    
+    try {
+      Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath);
+      Statement statement = connection.createStatement();
+      statement.setQueryTimeout(30);
+      SQL = "select TwitterIDs.TwitterID from TwitterIDs\n"
+          + "where BanUserFlg = 1;";
+      ResultSet result = statement.executeQuery(SQL);
+      while(result.next()) {
+        TwitterIDList.add(result.getString(1));
+      }
+      statement.close();
+      connection.close();
+    }catch (SQLException e){
+      outputSQLStackTrace(e,SQL);
+    }
+    return TwitterIDList;
+  }
+
+  //TwitterIDsに登録されており、RemoveFlg=1のユーザーを取得する
+  public List<String> getTwitterIDRemove(int RemovePattern) {
+    List<String> TwitterIDList = new ArrayList<String>();
+    String SQL = "";
+    
+    try {
+      Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath);
+      Statement statement = connection.createStatement();
+      statement.setQueryTimeout(30);
+      SQL = "select TwitterIDs.TwitterID from TwitterIDs\n"
+          + "where BanUserFlg = 1;";
+      ResultSet result = statement.executeQuery(SQL);
+      while(result.next()) {
+        TwitterIDList.add(result.getString(1));
+      }
+      statement.close();
+      connection.close();
+    }catch (SQLException e){
+      outputSQLStackTrace(e,SQL);
+    }
+    return TwitterIDList;
   }
   
   //UserListFlg = 0 TwitterIDs
