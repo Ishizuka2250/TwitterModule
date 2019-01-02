@@ -23,7 +23,9 @@ public class SqliteResource {
   private PrintWriter pw = new PrintWriter(StackTrace);
   
   SqliteResource(String UserName) throws ClassNotFoundException {
-    SqliteDirPath = "D:/twitterApp";
+    //SqliteDirPath = "D:/twitterApp";
+    SqliteDirPath = "/home/ishizuka/Temp/TwitterModule"; 
+    //SqlitePath = SqliteDirPath +  "/" + UserName + ".sqlite";
     SqlitePath = SqliteDirPath +  "/" + UserName + ".sqlite";
     InitSqlite(UserName);
   }
@@ -91,13 +93,13 @@ public class SqliteResource {
       if(!TwitterFollowerIDsExists) {
         SQL = "create table TwitterFollowerIDs("
             + "TwitterID text primary key,"
-            + "RemoveFollowFlg boolean);";
+            + "RemoveFollowerFlg boolean);";
         statement.execute(SQL);
       }
       if(!TwitterFollowIDsExists) {
         SQL = "create table TwitterFollowIDs("
             + "TwitterID text primary key,"
-            + "RemoveFollowFlg boolean,"
+            + "NotFollowFlg boolean,"
             + "FavoriteFlg boolean);";
         statement.execute(SQL);
       }
@@ -338,48 +340,60 @@ public class SqliteResource {
   //UserListFlg = 0 twitterIDs
   //UserListFlg = 1 follower
   //UserListFlg = 2 follow
-  //RemoveUser = true
+  //RemoveUser = 0
   //  TwitterIDs:TwitterIDsに登録されているIDをすべて取得する。
   //  TwitterFollowerIDs:TwitterFollowerIDsに登録されているIDをすべて取得する。
   //  TwitterFollowIDs:TwitterFollowIDsに登録されているIDをすべて取得する。
-  //RemoveUser = False
-  //  TwitterIDs:フォローもフォロバもされていないユーザー かつ 凍結されているユーザーは除外する。
+  //RemoveUser = 1
+  //  TwitterIDs:フォローもフォロバもされていないユーザー かつ 凍結されているユーザー は除外する。
   //  TwitterFollowerIDs:フォロバされていないユーザー かつ 凍結されているユーザー は除外する。
   //  TwitterFollowIDs:リフォローしているユーザー かつ 凍結されているユーザー は除外する。
-  public List<String> getTwitterIDList(int UserListFlg, Boolean RemoveUser) {
+  //RemoveUser = 2
+  //  TwitterIDs:フォローもフォロバもされていないユーザー かつ 凍結されているユーザー のみ取得する。
+  //  TwitterFollowerIDs:フォロバされていないユーザー かつ 凍結されているユーザー のみ取得する。
+  //  TwitterFollowIDs:リフォローしているユーザー かつ 凍結されているユーザー のみ取得する。
+  public List<String> getTwitterIDList(int UserListFlg, int RemoveUserFlg) {
     List<String> userList = new ArrayList<String>();
     String SQL="";
+    int banUserFlg,removeFlg,notFollowFlg,removeFollowerFlg;
+    
+    if((RemoveUserFlg == 0) || (RemoveUserFlg == 1)) {
+      banUserFlg = removeFlg = notFollowFlg = removeFollowerFlg = 0;
+    }else{
+      banUserFlg = removeFlg = notFollowFlg = removeFollowerFlg = 1;
+    }
+    
     try{
       Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath);
       Statement statement = connection.createStatement();
       statement.setQueryTimeout(30);
       if(UserListFlg == 0) {
-        if(RemoveUser) {
+        if(RemoveUserFlg == 0) {
           SQL = "select TwitterIDs.TwitterID from TwitterIDs";
         }else{
           SQL = "select TwitterIDs.TwitterID from TwitterIDs\n"
-              + "where TwitterIDs.BanUserFlg = 0\n"
-              + "and TwitterIDs.RemoveFlg = 0;";
+              + "where TwitterIDs.BanUserFlg = " + banUserFlg + "\n"
+              + "and TwitterIDs.RemoveFlg = " + removeFlg + ";";
         }
       }else if(UserListFlg == 1){
-        if(RemoveUser) {
+        if(RemoveUserFlg == 0) {
           SQL = "select TwitterFollowerIDs.TwitterID from TwitterFollowerIDs";
         }else{
           SQL = "select TwitterFollowerIDs.TwitterID from TwitterFollowerIDs\n"
               + "left outer join TwitterIDs\n"
               + "on TwitterFollowerIDs.TwitterID = TwitterIDs.TwitterID\n"
-              + "where TwitterFollowerIDs.RemoveFollowFlg = 0\n"
-              + "and TwitterIDs.BanUserFlg = 0;";
+              + "where TwitterFollowerIDs.RemoveFollowerFlg = " + removeFollowerFlg + "\n"
+              + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
         }
       }else if(UserListFlg == 2) {
-        if(RemoveUser) {
+        if(RemoveUserFlg == 0) {
           SQL = "select TwitterFollowIDs.TwitterID from TwitterFollowIDs";
         }else{
           SQL = "select TwitterFollowIDs.TwitterID from TwitterFollowIDs\n"
               + "left outer join TwitterIDs\n"
               + "on TwitterFollowIDs.TwitterID = TwitterIDs.TwitterID\n"
-              + "where TwitterFollowIDs.RemoveFollowFlg = 0\n"
-              + "and TwitterIDs.BanUserFlg = 0;";
+              + "where TwitterFollowIDs.NotFollowFlg = " + notFollowFlg + "\n"
+              + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
         }
       }
       ResultSet result = statement.executeQuery(SQL);
@@ -444,15 +458,15 @@ public class SqliteResource {
   //UserListFlg = 0 TwitterIDs
   //UserListFlg = 1 FollowerID
   //UserListFlg = 2 followID
-  //RemoveFlg = true Remove系のフラグを0にする
-  //RemoveFlg = false Remove系のフラグを1にする
+  //RemoveFlg = true Remove系のフラグを1にする
+  //RemoveFlg = false Remove系のフラグを0にする
   public void updateRemoveFlgs(List<String> UserIDList, int UserListFlg, boolean RemoveFlg) {
     Calendar cal = Calendar.getInstance();
     SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
     String SQL,userIDs;
     int removeValue = 0;
     SQL = userIDs = "";
-    if(!RemoveFlg) removeValue = 1; 
+    if(RemoveFlg) removeValue = 1; 
     try {
       Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath);
       Statement statement = connection.createStatement();
@@ -467,10 +481,10 @@ public class SqliteResource {
         SQL = "update TwitterIDs Set RemoveFlg = " + removeValue + "\n"
             + "where TwitterID in(" + userIDs + ")";
       }else if(UserListFlg == 1) {
-        SQL = "update TwitterFollowerIDs Set RemoveFollowFlg = " + removeValue + "\n"
+        SQL = "update TwitterFollowerIDs Set RemoveFollowerFlg = " + removeValue + "\n"
             + "where TwitterID in(" + userIDs + ")";
       }else if(UserListFlg == 2) {
-        SQL = "update TwitterFollowIDs Set RemoveFollowFlg = " + removeValue + "\n"
+        SQL = "update TwitterFollowIDs Set NotFollowFlg = " + removeValue + "\n"
             + "where TwitterID in(" + userIDs + ")";
       }
       statement.execute("begin transaction;");

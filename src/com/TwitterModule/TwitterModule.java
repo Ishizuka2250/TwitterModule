@@ -17,7 +17,8 @@ public class TwitterModule {
   private static String UserName;
   private static SqliteResource sqlite;
   private static APIKey key;
-  private static String APIKeyPath = "D:/twitterApp/APIKey.xml";
+  //private static String APIKeyPath = "D:/twitterApp/APIKey.xml";
+  private static String APIKeyPath = "/home/ishizuka/Temp/TwitterModule/APIKey.xml";
   private static long TwitterApiStopTimes = (15 * 60 * 1000) + (30 * 1000);// TwitterAPI制限→15分
 
   public static void main(String args[]) throws TwitterException, IOException,ClassNotFoundException {
@@ -65,8 +66,8 @@ public class TwitterModule {
    * */
   public static void selectUserInfoUpdate(int FilterPattern) throws TwitterException {
     List<String> IDList = new ArrayList<String>();
-    if(FilterPattern == 0) IDList = sqlite.getTwitterIDList(0,true);
-    else if(FilterPattern == 1) IDList = sqlite.getTwitterIDList(0,false);
+    if(FilterPattern == 0) IDList = sqlite.getTwitterIDList(0,0);
+    else if(FilterPattern == 1) IDList = sqlite.getTwitterIDList(0,1);
     else if(FilterPattern == 2) IDList = sqlite.getTwitterIDBan();
     //else if(FilterPattern == 3) IDList = sqlite.getTwitterID
     else {
@@ -201,9 +202,13 @@ public class TwitterModule {
 
     nowFollowIDList = getTwitterFollowIDList();
     nowFollowerIDList = getTwitterFollowerIDList();
-    sqlite.getTwitterIDList(0,true).forEach(s -> oldTwitterIDMap.put(s, s));
-    sqlite.getTwitterIDList(1,true).forEach(s -> oldFollowerIDMap.put(s, s));
-    sqlite.getTwitterIDList(2,true).forEach(s -> oldFollowIDMap.put(s, s));
+    
+    //RemoveFlg = 0 and BanUserFlg = 0 のユーザーを取得する
+    sqlite.getTwitterIDList(0,1).forEach(s -> oldTwitterIDMap.put(s, s));
+    //RemoveFollowerFlg = 0 のユーザーを取得する
+    sqlite.getTwitterIDList(1,1).forEach(s -> oldFollowerIDMap.put(s, s));
+    //NotFollowFlg = 0 のユーザーを取得する
+    sqlite.getTwitterIDList(2,1).forEach(s -> oldFollowIDMap.put(s, s));
     
     for (String id : nowFollowerIDList) {
       if (oldFollowerIDMap.get(id) == null) {
@@ -247,9 +252,13 @@ public class TwitterModule {
     
     getTwitterFollowerIDList().forEach(s -> nowFollowerIDMap.put(s, s));
     getTwitterFollowIDList().forEach(s -> nowFollowIDMap.put(s, s));
-    oldTwitterIDList = sqlite.getTwitterIDList(0,false);
-    oldFollowerIDList = sqlite.getTwitterIDList(1,false);
-    oldFollowIDList = sqlite.getTwitterIDList(2,false);
+    
+    //RemoveFlg = 0 and BanUserFlg = 0 のユーザーを取得
+    oldTwitterIDList = sqlite.getTwitterIDList(0,1);
+    //RemoveFollowerFlg = 0 のユーザーを取得
+    oldFollowerIDList = sqlite.getTwitterIDList(1,1);
+    //NotFollowFlg = 0 のユーザーを取得
+    oldFollowIDList = sqlite.getTwitterIDList(2,1);
     
     for (String id : oldFollowerIDList) {
       if(nowFollowerIDMap.get(id) == null) removeFollowerIDList.add(id);
@@ -264,19 +273,19 @@ public class TwitterModule {
     }
     
     if(removeFollowerIDList.size() != 0) {
-      //removeFollowerIDList.forEach(s -> System.out.println(s));
-      sqlite.updateRemoveFlgs(removeFollowerIDList, 1, false);
-      System.out.println("removeFollower Update -- oK");
+      sqlite.updateRemoveFlgs(removeFollowerIDList, 1, true);
+      System.out.println("removeFollower Update -- ok");
+      removeFollowerIDList.forEach(s -> System.out.println(s));
     }
     if(removeFollowIDList.size() != 0) {
-      //removeFollowIDList.forEach(s -> System.out.println(s));
-      sqlite.updateRemoveFlgs(removeFollowIDList, 2, false);
+      sqlite.updateRemoveFlgs(removeFollowIDList, 2, true);
       System.out.println("removeFollow update -- ok");
+      removeFollowIDList.forEach(s -> System.out.println(s));
     }
     if(removeTwitterIDList.size() != 0) {
-      //removeTwitterIDList.forEach(s -> System.out.println(s));
-      sqlite.updateRemoveFlgs(removeTwitterIDList, 0, false);
+      sqlite.updateRemoveFlgs(removeTwitterIDList, 0, true);
       System.out.println("removeTwitterID update -- ok");
+      removeTwitterIDList.forEach(s -> System.out.println(s));
     }
     if((removeFollowerIDList.size() == 0) && (removeFollowIDList.size() == 0)
         && (removeTwitterIDList.size() == 0)) System.out.println("リムーブ更新対象のIDはありません。");
