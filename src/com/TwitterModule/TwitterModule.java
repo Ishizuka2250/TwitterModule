@@ -19,7 +19,7 @@ public class TwitterModule {
   private static APIKey key;
   private static String APIKeyPath = "D:/twitterApp/APIKey.xml";
   //private static String APIKeyPath = "/home/ishizuka/Temp/TwitterModule/APIKey.xml";
-  private static long TwitterApiStopTimes = (15 * 60 * 1000) + (30 * 1000);// TwitterAPI制限→15分
+  private static long TwitterApiStopTimes = (15 * 60 * 1000) + (30 * 1000);// TwitterAPI制限回避→15分
 
   public static void main(String args[]) throws TwitterException, IOException,ClassNotFoundException {
     long start, end, TwitterIDsTime;
@@ -28,10 +28,10 @@ public class TwitterModule {
     Twitter twitter = twitterFactory.getInstance();
     
     start = System.currentTimeMillis();
-    twitterAddUserIDCheck();
+    //新規追加ユーザーのチェック
+    //twitterAddUserIDCheck();
+    //フォロー・リフォローのチェック
     twitterRemoveUserIDCheck();
-    //selectUserInfoUpdate(2);
-    //System.out.println(getUserInfo(twitter,"723074645046366212"));
     end = System.currentTimeMillis();
     TwitterIDsTime = end - start;
     System.out.println(TwitterIDsTime + "ms");
@@ -190,107 +190,128 @@ public class TwitterModule {
   }
 
   public static void twitterAddUserIDCheck() throws TwitterException {
-    List<String> nowFollowIDList = new ArrayList<String>();
-    List<String> nowFollowerIDList = new ArrayList<String>();
-    Map<String, String> oldFollowIDMap = new HashMap<String, String>();
-    Map<String, String> oldFollowerIDMap = new HashMap<String, String>();
-    Map<String, String> oldTwitterIDMap = new HashMap<String, String>();
-    List<String> addFollowIDList = new ArrayList<String>();
-    List<String> addFollowerIDList = new ArrayList<String>();
+    Boolean follow,follower;
+    Set<String> nowFollowIDSet = new HashSet<String>();
+    Set<String> nowFollowerIDSet = new HashSet<String>();
+    Set<String> nowTwitterIDSet = new HashSet<String>();
+    Set<String> oldTwitterIDSet = new HashSet<String>();
+    
+    Map<String,String> addFollowIDMap = new HashMap<String,String>();
+    Map<String,String> addFollowerIDMap = new HashMap<String,String>();
     Map<String, String> addTwitterIDMap = new HashMap<String, String>();
     List<String> addTwitterIDList = new ArrayList<String>();
 
-    nowFollowIDList = getTwitterFollowIDList();
-    nowFollowerIDList = getTwitterFollowerIDList();
+    //TwitterAPIより現在フォローしているユーザーを取得
+    getTwitterFollowIDList().forEach((v) -> {
+        nowFollowIDSet.add(v);
+        nowTwitterIDSet.add(v);
+    });
+    //TwitterAPIより現在フォローされているユーザーを取得
+    getTwitterFollowerIDList().forEach((v) -> {
+        nowFollowerIDSet.add(v);
+        nowTwitterIDSet.add(v);
+    });
     
-    //RemoveFlg = 0 and BanUserFlg = 0 のユーザーを取得する
-    sqlite.getTwitterIDList(0,1).forEach(s -> oldTwitterIDMap.put(s, s));
-    //RemoveFollowerFlg = 0 のユーザーを取得する
-    sqlite.getTwitterIDList(1,1).forEach(s -> oldFollowerIDMap.put(s, s));
-    //NotFollowFlg = 0 のユーザーを取得する
-    sqlite.getTwitterIDList(2,1).forEach(s -> oldFollowIDMap.put(s, s));
+    //TwitterIDsに登録されている全TwitterIDを取得する
+    sqlite.getTwitterIDList(0,0).forEach((v) -> {oldTwitterIDSet.add(v);});
     
-    for (String id : nowFollowerIDList) {
-      if (oldFollowerIDMap.get(id) == null) {
-        addFollowerIDList.add(id);
-        if (oldTwitterIDMap.get(id) == null) {
-          addTwitterIDMap.put(id, "follower");
+    for (String id : nowTwitterIDSet) {
+      //既存のID情報に存在しない新規IDのチェック
+      if(!oldTwitterIDSet.contains(id)) {
+        //0:フォロー, 1:フォローしていない
+        if(nowFollowIDSet.contains(id)) {
+          addFollowIDMap.put(id, "0");
+          follow = true;
+        }else{
+          addFollowIDMap.put(id, "1");
+          follow = false;
+        }
+        //0:フォロワー, 1:フォロワーではない 
+        if(nowFollowerIDSet.contains(id)){
+          addFollowerIDMap.put(id, "0");
+          follower = true;
+        }else{
+          addFollowerIDMap.put(id, "1");
+          follower = false;
+        }
+        //フォローしていない かつ フォロワーでもない場合
+        if((!follow) && (!follower)) {
+          addTwitterIDMap.put(id, "1");
+        }else{
+          addTwitterIDMap.put(id, "0");
         }
       }
     }
-    for (String id : nowFollowIDList) {
-      if (oldFollowIDMap.get(id) == null) {
-        addFollowIDList.add(id);
-        if ((oldTwitterIDMap.get(id) == null) && (addTwitterIDMap.get(id) == null)) {
-          addTwitterIDMap.put(id, "follow");
-        }
-      }
+    addTwitterIDMap.forEach((k,v) -> {addTwitterIDList.add(k);});
+
+    //Twitterで取得した各ID情報をDB(Sqlite)へ保存
+    if (addFollowIDMap.size() != 0) {
+      sqlite.updateTwitterID(addFollowIDMap, 1);
+      addFollowIDMap.forEach((k,v) -> {System.out.println("  " + k + ":" + v);});
+      System.out.println("TwitterFollowIDs update -- ok");
     }
-    addTwitterIDMap.forEach((k, v) -> System.out.println("id:" + k + " state:" + v));
-    //System.exit(0);
-    addTwitterIDMap.forEach((k, v) -> addTwitterIDList.add(k));
-    
-    if (addFollowerIDList.size() != 0) sqlite.updateTwitterID(addFollowerIDList, 1);
-    if (addFollowIDList.size() != 0) sqlite.updateTwitterID(addFollowIDList, 2);
-    if (addTwitterIDList.size() != 0) {
-      sqlite.updateTwitterID(addTwitterIDList, 0);
+    if (addFollowerIDMap.size() != 0) {
+      sqlite.updateTwitterID(addFollowerIDMap, 2);
+      addFollowerIDMap.forEach((k,v) -> {System.out.println("  " + k + ":" + v);});
+      System.out.println("TwitterFollowerIDs update -- ok");
+    }
+      
+    if (addTwitterIDMap.size() != 0) {
+      sqlite.updateTwitterID(addTwitterIDMap, 0);
+      System.out.println("TwitterIDs update -- ok");
       sqlite.updateFlgsOn(addTwitterIDList);
       twitterUserInfoUpdate();
     }
-    if ((addFollowIDList.size() == 0) && (addFollowerIDList.size() == 0)
-        && (addTwitterIDList.size() == 0)) System.out.println("新規追加IDはありません。");
+    
+    if ((addFollowIDMap.size() == 0) && (addFollowerIDMap.size() == 0)
+        && (addTwitterIDMap.size() == 0)) System.out.println("新規追加IDはありません。");
   }
 
   public static void twitterRemoveUserIDCheck() throws TwitterException {
-    Map<String,String> nowFollowIDMap = new HashMap<String,String>();
-    Map<String,String> nowFollowerIDMap = new HashMap<String,String>();
-    Map<String,String> nowTwitterIDMap = new HashMap<String,String>();
-    List<String> oldFollowIDList = new ArrayList<String>();
-    List<String> oldFollowerIDList = new ArrayList<String>();
-    List<String> oldTwitterIDList = new ArrayList<String>();
-    List<String> removeFollowIDList = new ArrayList<String>();
-    List<String> removeFollowerIDList = new ArrayList<String>();
-    List<String> removeTwitterIDList = new ArrayList<String>();
+    Set<String> nowFollowIDSet = new HashSet<String>();
+    Set<String> nowFollowerIDSet = new HashSet<String>();
     
-    getTwitterFollowerIDList().forEach(s -> nowFollowerIDMap.put(s, s));
-    getTwitterFollowIDList().forEach(s -> nowFollowIDMap.put(s, s));
+    Set<String> oldFollowIDSet = new HashSet<String>();
+    Set<String> oldFollowerIDSet = new HashSet<String>();
     
-    //RemoveFlg = 0 and BanUserFlg = 0 のユーザーを取得
-    oldTwitterIDList = sqlite.getTwitterIDList(0,1);
-    //RemoveFollowerFlg = 0 のユーザーを取得
-    oldFollowerIDList = sqlite.getTwitterIDList(1,1);
-    //NotFollowFlg = 0 のユーザーを取得
-    oldFollowIDList = sqlite.getTwitterIDList(2,1);
+    Map<String,String> removeFollowIDMap = new HashMap<String,String>();
+    Map<String,String> removeFollowerIDMap = new HashMap<String,String>();
+    Map<String,String> removeTwitterIDMap = new HashMap<String,String>();
     
-    for (String id : oldFollowerIDList) {
-      if(nowFollowerIDMap.get(id) == null) removeFollowerIDList.add(id);
-      nowTwitterIDMap.put(id, id);
+    getTwitterFollowIDList().forEach((v) -> {nowFollowIDSet.add(v);});
+    getTwitterFollowerIDList().forEach((v) -> {nowFollowerIDSet.add(v);});
+    
+    sqlite.getTwitterIDList(1,1).forEach((v) -> {oldFollowIDSet.add(v);});
+    sqlite.getTwitterIDList(2,1).forEach((v) -> {oldFollowerIDSet.add(v);}); 
+    
+    for(String id : oldFollowIDSet) {
+      if(!nowFollowIDSet.contains(id)) removeFollowIDMap.put(id,"1");
     }
-    for (String id : oldFollowIDList) {
-      if(nowFollowIDMap.get(id) == null) removeFollowIDList.add(id);
-      if(nowTwitterIDMap.get(id) == null) nowTwitterIDMap.put(id, id);
-    }
-    for(String id : oldTwitterIDList) {
-      if(nowTwitterIDMap.get(id) == null) removeTwitterIDList.add(id);
+    for(String id : oldFollowerIDSet) {
+      if(!nowFollowerIDSet.contains(id)) removeFollowerIDMap.put(id,"1");
     }
     
-    if(removeFollowerIDList.size() != 0) {
-      sqlite.updateRemoveFlgs(removeFollowerIDList, 1, true);
-      System.out.println("removeFollower Update -- ok");
-      removeFollowerIDList.forEach(s -> System.out.println(s));
+    //TwitterIDのRemoveFlgのチェック方法を見直す必要あり。2019/01/06
+    //リムーブ・リフォローされたユーザーに対しsqlite内のNotFollow/RemoveFollowerをチェックしてどちらも1であればTwitterIDsのRemoveFlg=1にセットするロジックが必要
+    for(String id : removeFollowIDMap.keySet()) {
+      if(removeFollowerIDMap.get(id) != null) removeTwitterIDMap.put(id,"1");
     }
-    if(removeFollowIDList.size() != 0) {
-      sqlite.updateRemoveFlgs(removeFollowIDList, 2, true);
-      System.out.println("removeFollow update -- ok");
-      removeFollowIDList.forEach(s -> System.out.println(s));
+    
+    if(removeFollowIDMap.size() != 0) {
+      sqlite.updateTwitterID(removeFollowIDMap, 1);
+      removeFollowIDMap.forEach((k,v) -> System.out.println(k));
     }
-    if(removeTwitterIDList.size() != 0) {
-      sqlite.updateRemoveFlgs(removeTwitterIDList, 0, true);
-      System.out.println("removeTwitterID update -- ok");
-      removeTwitterIDList.forEach(s -> System.out.println(s));
+    if(removeFollowerIDMap.size() != 0) {
+      sqlite.updateTwitterID(removeFollowerIDMap, 2);
+      removeFollowerIDMap.forEach((k,v) -> System.out.println(k));
     }
-    if((removeFollowerIDList.size() == 0) && (removeFollowIDList.size() == 0)
-        && (removeTwitterIDList.size() == 0)) System.out.println("リムーブ更新対象のIDはありません。");
+    if(removeTwitterIDMap.size() != 0) {
+      sqlite.updateTwitterID(removeTwitterIDMap, 0);
+      removeTwitterIDMap.forEach((k,v) -> System.out.println(k));
+    }
+
+    if((removeFollowerIDMap.size() == 0) && (removeFollowIDMap.size() == 0)
+        && (removeTwitterIDMap.size() == 0)) System.out.println("リムーブ更新対象のIDはありません。");
   }
 
   public static List<String> getTwitterFollowerIDList() throws TwitterException {
