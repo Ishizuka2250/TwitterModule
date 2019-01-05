@@ -23,10 +23,10 @@ public class SqliteResource {
   private PrintWriter pw = new PrintWriter(StackTrace);
   
   SqliteResource(String UserName) throws ClassNotFoundException {
-    //SqliteDirPath = "D:/twitterApp";
-    SqliteDirPath = "/home/ishizuka/Temp/TwitterModule"; 
-    //SqlitePath = SqliteDirPath +  "/" + UserName + ".sqlite";
+    SqliteDirPath = "D:/twitterApp";
+    //SqliteDirPath = "/home/ishizuka/Temp/TwitterModule"; 
     SqlitePath = SqliteDirPath +  "/" + UserName + ".sqlite";
+    //SqlitePath = SqliteDirPath +  "/" + UserName + ".sqlite";
     InitSqlite(UserName);
   }
   
@@ -174,9 +174,9 @@ public class SqliteResource {
   //insertPattern = 0 TwitterIDs
   //insertPattern = 1 FollowerID
   //insertPattern = 2 followID
-  public void insertTwitterID(List<String> IDList, int insertPattern) {
+  public void updateTwitterID(List<String> IDList, int insertPattern) {
     String SQL = "";
-    long count;
+    long recordCount;
     Calendar cal = Calendar.getInstance();
     SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
     
@@ -202,14 +202,24 @@ public class SqliteResource {
           System.exit(1);
         }
         ResultSet result = statement.executeQuery(SQL);
-        count = result.getInt(1);
-        if(count == 0) {
+        recordCount = result.getInt(1);
+        if(recordCount == 0) {
           if(insertPattern == 0) {
             statement.execute("insert into TwitterIDs values('" + id + "', 0, 0, '" + sdf.format(cal.getTime()) + "', '000000000000', '0', '0', '0')");
           }else if(insertPattern == 1) {
             statement.execute("insert into TwitterFollowerIDs values('" + id + "', '0');");
           }else{
             statement.execute("insert into TwitterFollowIDs values('" + id + "', '0', '0');");
+          }
+        }else{
+          //count!=0 の場合
+          //Remove系フラグ = 0に更新する処理を追加する。
+          if(insertPattern == 1) {
+            statement.execute("update TwitterFollowerIDs set RemoveFollowerFlg = 0 where TwitterID = '" + id + "';");
+            statement.execute("update TwitterIDs set RemoveFlg = 0 where TwitterID = '" + id + "';");
+          }else if(insertPattern == 2) {
+            statement.execute("update TwitterFollowIDs set NotFollowFlg = 0 where TwitterID = '" + id + "';");
+            statement.execute("update TwitterIDs set RemoveFlg = 0 where TwitterID = '" + id + "';");
           }
         }
       }

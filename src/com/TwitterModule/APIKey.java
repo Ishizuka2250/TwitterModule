@@ -16,6 +16,12 @@ public class APIKey {
   
   APIKey(String APIKeyXmlPath) {
     try {
+      File existAPIKeyXml;
+      existAPIKeyXml = new File(APIKeyXmlPath);
+      if(existAPIKeyXml.exists() == false) {
+        System.out.println("APIKey.xmlÇÃì«Ç›çûÇ›Ç…é∏îsÇµÇ‹ÇµÇΩ.");
+        System.exit(1);
+      }
       openXml(APIKeyXmlPath);
       if((!UserName.equals("")) && (!ConsumerKey.equals("")) && (!ConsumerSecret.equals(""))
         && (!AccessToken.equals("")) && (!AccessTokenSecret.equals("")) && (use.equals("1"))) {
@@ -121,6 +127,7 @@ public class APIKey {
   public String getAccessTokenSecret() {
     return AccessTokenSecret;
   }
+  
 }
 
 

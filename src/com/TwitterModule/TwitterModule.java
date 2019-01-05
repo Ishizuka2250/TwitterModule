@@ -17,8 +17,8 @@ public class TwitterModule {
   private static String UserName;
   private static SqliteResource sqlite;
   private static APIKey key;
-  //private static String APIKeyPath = "D:/twitterApp/APIKey.xml";
-  private static String APIKeyPath = "/home/ishizuka/Temp/TwitterModule/APIKey.xml";
+  private static String APIKeyPath = "D:/twitterApp/APIKey.xml";
+  //private static String APIKeyPath = "/home/ishizuka/Temp/TwitterModule/APIKey.xml";
   private static long TwitterApiStopTimes = (15 * 60 * 1000) + (30 * 1000);// TwitterAPI§ŒÀ¨15•ª
 
   public static void main(String args[]) throws TwitterException, IOException,ClassNotFoundException {
@@ -226,12 +226,14 @@ public class TwitterModule {
         }
       }
     }
+    addTwitterIDMap.forEach((k, v) -> System.out.println("id:" + k + " state:" + v));
+    //System.exit(0);
     addTwitterIDMap.forEach((k, v) -> addTwitterIDList.add(k));
     
-    if (addFollowerIDList.size() != 0) sqlite.insertTwitterID(addFollowerIDList, 1);
-    if (addFollowIDList.size() != 0) sqlite.insertTwitterID(addFollowIDList, 2);
+    if (addFollowerIDList.size() != 0) sqlite.updateTwitterID(addFollowerIDList, 1);
+    if (addFollowIDList.size() != 0) sqlite.updateTwitterID(addFollowIDList, 2);
     if (addTwitterIDList.size() != 0) {
-      sqlite.insertTwitterID(addTwitterIDList, 0);
+      sqlite.updateTwitterID(addTwitterIDList, 0);
       sqlite.updateFlgsOn(addTwitterIDList);
       twitterUserInfoUpdate();
     }
@@ -269,7 +271,7 @@ public class TwitterModule {
       if(nowTwitterIDMap.get(id) == null) nowTwitterIDMap.put(id, id);
     }
     for(String id : oldTwitterIDList) {
-      if(nowTwitterIDMap.get(id) ==null) removeTwitterIDList.add(id);
+      if(nowTwitterIDMap.get(id) == null) removeTwitterIDList.add(id);
     }
     
     if(removeFollowerIDList.size() != 0) {
