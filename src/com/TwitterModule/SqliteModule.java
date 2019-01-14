@@ -55,7 +55,7 @@ public class SqliteModule {
     boolean TwitterFollowIDsExists = false;
     boolean TwitterUserInfoExists = false;
     boolean TwitterUserInfoURLsExists = false;
-    boolean UnReturnFollowIDsExists = false;
+    boolean RemoveFollowerIDsViewExists = false;
     boolean UnFollowIDsExists = false;
     boolean TableCheckStatus = true;
     String SQL = "";
@@ -72,9 +72,8 @@ public class SqliteModule {
         if(result.getString(2).equals("TwitterFollowIDs")) TwitterFollowIDsExists = true;
         if(result.getString(2).equals("TwitterUserInfo")) TwitterUserInfoExists = true;
         if(result.getString(2).equals("TwitterUserInfoURLs")) TwitterUserInfoURLsExists = true;
-        if(result.getString(2).equals("UnReturnFollowIDs")) UnReturnFollowIDsExists = true;
+        if(result.getString(2).equals("RemoveFollowerIDs")) RemoveFollowerIDsViewExists = true;
         if(result.getString(2).equals("UnFollowIDs")) UnFollowIDsExists = true;
-        //if(result.getString(2).equals("BufferTwitterIDs")) BufferTwitterIDsExists = true;
       }
       
       if(!TwitterIDsExists) {
@@ -93,14 +92,16 @@ public class SqliteModule {
       if(!TwitterFollowerIDsExists) {
         SQL = "create table TwitterFollowerIDs("
             + "TwitterID text primary key,"
-            + "RemoveFollowerFlg boolean);";
+            + "RemoveFollowerFlg boolean,"
+            + "UpdateTime Text);";
         statement.execute(SQL);
       }
       if(!TwitterFollowIDsExists) {
         SQL = "create table TwitterFollowIDs("
             + "TwitterID text primary key,"
             + "NotFollowFlg boolean,"
-            + "FavoriteFlg boolean);";
+            + "FavoriteFlg boolean,"
+            + "UpdateTime Text);";
         statement.execute(SQL);
       }
       if(!TwitterUserInfoExists) {
@@ -126,13 +127,16 @@ public class SqliteModule {
             + "UserProfileBackGroundImageURL text);";
         statement.execute(SQL);
       }
-      if(!UnReturnFollowIDsExists) {
-        SQL = "create view UnReturnFollowIDs as\n"
-            + "select TwitterID from TwitterFollowIDs\n"
-            + "where not exists(\n"
-            + "  select TwitterFollowerIDs.TwitterID\n"
-            + "  from TwitterFollowerIDs\n"
-            + "  where TwitterFollowIDs.TwitterID = TwitterFollowerIDs.TwitterID);";
+      if(!RemoveFollowerIDsViewExists) {
+        SQL = "create view RemoveFollowerIDs as\n"
+            + "select TwitterIDs.TwitterID,TwitterUserInfo.UserScreenName,TwitterUserInfo.UserName\n"
+            + "from TwitterIDs\n"
+            + "left outer join TwitterFollowIDs on TwitterIDs.TwitterID = TwitterFollowIDs.TwitterID\n"
+            + "left outer join TwitterFollowerIDs on TwitterIDs.TwitterID = TwitterFollowerIDs.TwitterID\n"
+            + "left outer join TwitterUserInfo on TwitterIDs.TwitterID = TwitterUserInfo.TwitterID\n"
+            + "where TwitterFollowerIDs.RemoveFollowerFlg = 1\n"
+            + "and TwitterIDs.RemoveFlg != 1\n"
+            + "and TwitterFollowIDs.FavoriteFlg = 0";
         statement.execute(SQL);
       }
       if(!UnFollowIDsExists) {
@@ -171,12 +175,13 @@ public class SqliteModule {
     System.exit(1);
   }
   
-  //insertPattern = 0 TwitterIDs
-  //insertPattern = 1 followID
-  //insertPattern = 2 FollowerID
+  //Map<TwitterID,Userの状態[0:自分がフォローした もしくは 相手からフォローされた状態, 1:自分がフォローを外した もしくは 相手からフォローを外された状態]>
+  //insertPattern = 0 TwitterIDsテーブルの更新
+  //insertPattern = 1 TwitterfollowIDsテーブルの更新
+  //insertPattern = 2 TwitterFollowerIDsテーブルの更新
   public void updateTwitterID(Map<String,String> IDMap, int insertPattern) {
     String SQL = "";
-    String execute = "";
+    String executeType = "";
     long recordCount;
     Calendar cal = Calendar.getInstance();
     SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
@@ -209,7 +214,7 @@ public class SqliteModule {
         
         //TwitterIDs/TwitterFollowIDs/TwitterFollowerIDs : レコード新規追加時(recordCount = 0)
         if(recordCount == 0) {
-          execute = "insert";
+          executeType = "insert";
           if(insertPattern == 0) {
             //idの状態が"0"の場合:RemoveFlg = 0, idの状態が"1"の場合:RemoveFlg = 1
             if(IDMap.get(id).equals("0")) {
@@ -220,41 +225,47 @@ public class SqliteModule {
           }else if(insertPattern == 1) {
             //idの状態が"0"の場合:NotFollowFlg = 0, idの状態が"1"の場合:NotFollowFlg = 1
             if(IDMap.get(id).equals("0")) {
-              statement.execute("insert into TwitterFollowIDs values('" + id + "', '0', '0');");
+              statement.execute("insert into TwitterFollowIDs values('" + id + "', '0', '0','" + sdf.format(cal.getTime()) + "');");
             }else{
-              statement.execute("insert into TwitterFollowIDs values('" + id + "', '1', '0');");
+              statement.execute("insert into TwitterFollowIDs values('" + id + "', '1', '0','" + sdf.format(cal.getTime()) + "');");
             }
           }else if(insertPattern == 2) {
             //idの状態が"0"の場合:RemoveFollowFlg = 0, idの状態が"1"の場合:RemoveFollowFlg = 1
             if(IDMap.get(id).equals("0")) {
-              statement.execute("insert into TwitterFollowerIDs values('" + id + "', '0');");
+              statement.execute("insert into TwitterFollowerIDs values('" + id + "', '0','" + sdf.format(cal.getTime()) + "');");
             }else{
-              statement.execute("insert into TwitterFollowerIDs values('" + id + "', '1');");
+              statement.execute("insert into TwitterFollowerIDs values('" + id + "', '1','" + sdf.format(cal.getTime()) + "');");
             }
           }
         }else{
           //TwitterIDs/TwitterFollowIDs/TwitterFollowerIDs : 既存レコードの更新 (recordCount = 1)
-          execute = "update";
+          executeType = "update";
+          //TwitterIDsテーブルの更新
           if(insertPattern == 0) {
             if(IDMap.get(id).equals("0")) {
               statement.execute("update TwitterIDs set RemoveFlg = 0 where TwitterID = '" + id + "';");
             }else {
               statement.execute("update TwitterIDs set RemoveFlg = 1 where TwitterID = '" + id + "';");
             }
+            statement.execute("update TwitterIDs set UpdateTime = '" + sdf.format(cal.getTime()) + "' where TwitterID = '" + id + "';");
           }
+          //TwitterFollowテーブルの更新
           if(insertPattern == 1) {
             if(IDMap.get(id).equals("0")) {
               statement.execute("update TwitterFollowIDs set NotFollowFlg = 0 where TwitterID = '" + id + "';");
             }else {
               statement.execute("update TwitterFollowIDs set NotFollowFlg = 1 where TwitterID = '" + id + "';");
             }
+            statement.execute("update TwitterFollowIDs set UpdateTime = '" + sdf.format(cal.getTime()) + "' where TwitterID = '" + id + "';");
           }
+          //TwitterFollowerテーブルの更新
           if(insertPattern == 2) {
             if(IDMap.get(id).equals("0")) {
               statement.execute("update TwitterFollowerIDs set RemoveFollowerFlg = 0 where TwitterID = '" + id + "';");
             }else {
               statement.execute("update TwitterFollowerIDs set RemoveFollowerFlg = 1 where TwitterID = '" + id + "';");
             }
+            statement.execute("update TwitterFollowerIDs set UpdateTime = '" + sdf.format(cal.getTime()) + "' where TwitterID = '" + id + "';");
           }
           
         }
@@ -262,9 +273,9 @@ public class SqliteModule {
       statement.execute("commit;");
       statement.close();
       connection.close();
-      if(insertPattern == 0) System.out.println("squite.TwitterIDs " + execute + " -- ok.");
-      else if(insertPattern == 1) System.out.println("sqlite.TwitterFollowerIDs " + execute + " -- ok.");
-      else if(insertPattern == 2) System.out.println("sqlite.TwitterFollowIDs " + execute + " -- ok.");
+      if(insertPattern == 0) System.out.println("squite.TwitterIDs " + executeType + " -- ok.");
+      else if(insertPattern == 1) System.out.println("sqlite.TwitterFollowerIDs " + executeType + " -- ok.");
+      else if(insertPattern == 2) System.out.println("sqlite.TwitterFollowIDs " + executeType + " -- ok.");
     }catch (SQLException e) {
       outputSQLStackTrace(e,SQL);
     }
@@ -329,8 +340,8 @@ public class SqliteModule {
         result.next();
         if(result.getInt(1) == 0) {
           //TwitterUserInfo新規登録時
-          //アカBANされているUserIDかどうかの判定[UserIDMap.get(temp) = "BAN" → アカBan] 
-          if(UserIDMap.get(temp).equals("BAN") == false) {//ユーザー情報正常取得時(NotアカBAN)
+          //アカBANされているUserIDかどうかの判定[UserIDMap.get(temp) = "1" → アカBan] 
+          if(UserIDMap.get(temp).equals("1") == false) {//ユーザー情報正常取得時(NotアカBAN)
             SQL = "insert into TwitterUserInfo values(" + UserIDMap.get(temp) + ");";
             statement.execute(SQL);
             SQL = "update TwitterIDs set UpdateUserInfoTimes = 1,UpdateTime = " + sdf.format(cal.getTime()) + ",  UpdateFlg = '0', BanUserFlg = '0'\n"
@@ -357,8 +368,8 @@ public class SqliteModule {
           result = statement.executeQuery(SQL);
           result.next();
           updateUserInfoTimes = result.getInt(2);
-          //アカBANされているUserIDかどうかの判定 [UserIDMap.get(temp) = "BAN" → アカBan]
-          if(UserIDMap.get(temp).equals("BAN") == false) {//ユーザー情報正常取得時
+          //アカBANされているユーザかどうか判定. [UserIDMap.get(temp) = "1" → アカBanされているユーザ]
+          if(UserIDMap.get(temp).equals("1") == false) {//ユーザー情報正常取得時
             //User情報更新
             SQL = "insert into TwitterUserInfo values(" + UserIDMap.get(temp) + ");";
             statement.execute(SQL);

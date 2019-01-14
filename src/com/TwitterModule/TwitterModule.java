@@ -24,12 +24,10 @@ public class TwitterModule {
   public static void main(String args[]) throws TwitterException, IOException,ClassNotFoundException {
     long start, end, TwitterIDsTime;
     initTwitterModule();
-    TwitterFactory twitterFactory = new TwitterFactory(twitterConfigure().build());
-    Twitter twitter = twitterFactory.getInstance();
     
     start = System.currentTimeMillis();
     //新規追加ユーザーのチェック
-    //twitterAddUserIDCheck();
+    twitterAddUserIDCheck();
     //フォロー・リフォローのチェック
     twitterUpdateUserIDCheck();
     end = System.currentTimeMillis();
@@ -69,7 +67,6 @@ public class TwitterModule {
     if(FilterPattern == 0) IDList = sqlite.getTwitterIDList(0,0);
     else if(FilterPattern == 1) IDList = sqlite.getTwitterIDList(0,1);
     else if(FilterPattern == 2) IDList = sqlite.getTwitterIDBan();
-    //else if(FilterPattern == 3) IDList = sqlite.getTwitterID
     else {
       System.out.println("error:Unknown FilterPattern.");
       System.exit(1);
@@ -92,7 +89,11 @@ public class TwitterModule {
         System.out.println("API制限により処理を中断しました。\n-> " + TwitterApiStopTimes + "ms停止");
         try {
           Thread.sleep(TwitterApiStopTimes);
-        } catch (InterruptedException e) {}
+        } catch (InterruptedException e) {
+          StringWriter sw = new StringWriter();
+          PrintWriter pw = new PrintWriter(sw);
+          System.out.println("InterruptedException:");
+        }
         updateIDList = sqlite.getUpdateUserIDList(1);
       }
     }
@@ -103,7 +104,6 @@ public class TwitterModule {
     TwitterFactory twitterFactory = new TwitterFactory(twitterConfigure().build());
     Twitter twitter = twitterFactory.getInstance();
     Map<String, String> UserInfoMap = new HashMap<String, String>();
-    List<String> OnHoldUserList = new ArrayList<String>();
     Boolean APILimit = false;
     String buffer = "";
     long getUserInfoOK = 0L;
@@ -112,24 +112,25 @@ public class TwitterModule {
     for (String id : IDList) {
       if (!APILimit) {
         buffer = getUserInfo(twitter, id);
+        //getUserInfoから-1が返された場合API制限により一時的にUser情報取得不可
+        //-1 以外の場合にマップへユーザー情報を格納
         if (!buffer.equals("-1")) {
           UserInfoMap.put(id, buffer);
           getUserInfoOK++;
+        //-1 の場合, ユーザ情報未取得のユーザ数をカウントする
         } else {
-          OnHoldUserList.add(id);
           onHold++;
           APILimit = true;
         }
       } else {
-        OnHoldUserList.add(id);
         onHold++;
       }
     }
-    // updateのしょり
-    System.out.println("ユーザー取得完了：" + getUserInfoOK + "\n保留：" + onHold);
-    // sqlite.insertBufferTwitterIDs(OnHoldUserList);
+    //TwitterAPI制限による中断・全ユーザー情報取得完了時にSqliteへユーザ情報を格納する
     sqlite.updateUserInfo(UserInfoMap);
-
+    System.out.println("ユーザー取得完了：" + getUserInfoOK + "\n保留：" + onHold);
+    
+    //getUserInfoから-1を受け取った場合ユーザー取得処理を中断する
     if (buffer.equals("-1")) {
       return false;
     }
@@ -160,7 +161,7 @@ public class TwitterModule {
     } catch (TwitterException te) {
       if ((te.getErrorCode() == 63) || (te.getErrorCode() == 50)) {
         System.out.println("[" + id + "] -> 凍結中のユーザーアカウントです。 ");
-        return "BAN";
+        return "1";
       } else if (te.getErrorCode() == 88) {
         // System.out.println("-> API制限に到達しました。5分間停止します。");
         return "-1";
@@ -356,7 +357,7 @@ public class TwitterModule {
     }
     if(notRemoveTwitterIDMap.size() != 0) {
       sqlite.updateTwitterID(notRemoveTwitterIDMap, 0);
-      System.out.println("notTwitterID");
+      System.out.println("notRemoveTwitterID");
       notRemoveTwitterIDMap.forEach((k,v) -> System.out.println(k));
     }
     
