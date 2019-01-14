@@ -16,13 +16,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-public class SqliteResource {
+public class SqliteModule {
   private String SqliteDirPath;
   private String SqlitePath;
   private StringWriter StackTrace = new StringWriter();
   private PrintWriter pw = new PrintWriter(StackTrace);
   
-  SqliteResource(String UserName) throws ClassNotFoundException {
+  SqliteModule(String UserName) throws ClassNotFoundException {
     SqliteDirPath = "D:/twitterApp";
     //SqliteDirPath = "/home/ishizuka/Temp/TwitterModule"; 
     SqlitePath = SqliteDirPath +  "/" + UserName + ".sqlite";
@@ -235,13 +235,6 @@ public class SqliteResource {
         }else{
           //TwitterIDs/TwitterFollowIDs/TwitterFollowerIDs : 既存レコードの更新 (recordCount = 1)
           execute = "update";
-          /*if(insertPattern == 1) {
-            statement.execute("update TwitterFollowerIDs set RemoveFollowerFlg = 0 where TwitterID = '" + id + "';");
-            statement.execute("update TwitterIDs set RemoveFlg = 0 where TwitterID = '" + id + "';");
-          }else if(insertPattern == 2) {
-            statement.execute("update TwitterFollowIDs set NotFollowFlg = 0 where TwitterID = '" + id + "';");
-            statement.execute("update TwitterIDs set RemoveFlg = 0 where TwitterID = '" + id + "';");
-          }*/
           if(insertPattern == 0) {
             if(IDMap.get(id).equals("0")) {
               statement.execute("update TwitterIDs set RemoveFlg = 0 where TwitterID = '" + id + "';");
@@ -402,9 +395,9 @@ public class SqliteResource {
   //  TwitterFollowIDs:リフォローしているユーザー かつ 凍結されているユーザー は除外する。
   //  TwitterFollowerIDs:フォロバされていないユーザー かつ 凍結されているユーザー は除外する。
   //RemoveUser = 2
-  //  TwitterIDs:フォローもフォロバもされていないユーザー かつ 凍結されているユーザー のみ取得する。
-  //  TwitterFollowIDs:リフォローしているユーザー かつ 凍結されているユーザー のみ取得する。
-  //  TwitterFollowerIDs:フォロバされていないユーザー かつ 凍結されているユーザー のみ取得する。
+  //  TwitterIDs:フォローもフォロバもされていないユーザー と 凍結されているユーザー のみ取得する。
+  //  TwitterFollowIDs:リフォローしているユーザー と 凍結されているユーザー のみ取得する。
+  //  TwitterFollowerIDs:フォロバされていないユーザー と 凍結されているユーザー のみ取得する。
   public List<String> getTwitterIDList(int UserListFlg, int RemoveUserFlg) {
     List<String> userList = new ArrayList<String>();
     String SQL="";
@@ -425,8 +418,12 @@ public class SqliteResource {
           SQL = "select TwitterIDs.TwitterID from TwitterIDs";
         }else{
           SQL = "select TwitterIDs.TwitterID from TwitterIDs\n"
-              + "where TwitterIDs.BanUserFlg = " + banUserFlg + "\n"
-              + "and TwitterIDs.RemoveFlg = " + removeFlg + ";";
+              + "where TwitterIDs.RemoveFlg = " + removeFlg + "\n";
+          if(RemoveUserFlg == 1) {
+            SQL = SQL + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
+          }else if(RemoveUserFlg == 2){
+            SQL = SQL + "or TwitterIDs.BanUserFlg = " + banUserFlg + ";";
+          }
         }
       }else if(UserListFlg == 1){
         if(RemoveUserFlg == 0) {
@@ -435,8 +432,12 @@ public class SqliteResource {
           SQL = "select TwitterFollowIDs.TwitterID from TwitterFollowIDs\n"
               + "left outer join TwitterIDs\n"
               + "on TwitterFollowIDs.TwitterID = TwitterIDs.TwitterID\n"
-              + "where TwitterFollowIDs.NotFollowFlg = " + notFollowFlg + "\n"
-              + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
+              + "where TwitterFollowIDs.NotFollowFlg = " + notFollowFlg + "\n";
+          if(RemoveUserFlg == 1) {
+            SQL = SQL + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
+          }else if(RemoveUserFlg == 2){
+            SQL = SQL + "or TwitterIDs.BanUserFlg = " + banUserFlg + ";";
+          }
         }
       }else if(UserListFlg == 2) {
         if(RemoveUserFlg == 0) {
@@ -445,8 +446,12 @@ public class SqliteResource {
           SQL = "select TwitterFollowerIDs.TwitterID from TwitterFollowerIDs\n"
               + "left outer join TwitterIDs\n"
               + "on TwitterFollowerIDs.TwitterID = TwitterIDs.TwitterID\n"
-              + "where TwitterFollowerIDs.RemoveFollowerFlg = " + removeFollowerFlg + "\n"
-              + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
+              + "where TwitterFollowerIDs.RemoveFollowerFlg = " + removeFollowerFlg + "\n";
+          if(RemoveUserFlg == 1) {
+            SQL = SQL + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
+          }else if(RemoveUserFlg == 2){
+            SQL = SQL + "or TwitterIDs.BanUserFlg = " + banUserFlg + ";";
+          }
         }
       }
       ResultSet result = statement.executeQuery(SQL);
