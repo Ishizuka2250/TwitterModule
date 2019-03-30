@@ -1,7 +1,5 @@
 package com.TwitterModule;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.sql.Connection;
@@ -23,136 +21,13 @@ public class SqliteModule {
   private PrintWriter pw = new PrintWriter(StackTrace);
   
   SqliteModule(String UserName) throws ClassNotFoundException {
+    Class.forName("org.sqlite.JDBC");
     SqliteDirPath = "D:/twitterApp";
     //SqliteDirPath = "/home/ishizuka/Temp/TwitterModule"; 
     SqlitePath = SqliteDirPath +  "/" + UserName + ".sqlite";
     //SqlitePath = SqliteDirPath +  "/" + UserName + ".sqlite";
-    InitSqlite(UserName);
-  }
-  
-  private void InitSqlite(String UserName) throws ClassNotFoundException  {
-    Class.forName("org.sqlite.JDBC");
-    File existSqlite = new File(SqlitePath);
-    File existSqliteDir = new File(SqliteDirPath);
-    if(existSqlite.exists() == false) {
-      if(existSqliteDir.exists() == false) existSqliteDir.mkdirs();
-      try {
-        FileWriter emptySqlite = new FileWriter(existSqlite,false);
-        emptySqlite.close();
-        System.out.println("D:/twitterApp/に" + UserName + ".Sqlite を作成しました。");
-      } catch (IOException e) {
-        e.printStackTrace(pw);
-        pw.flush();
-        return;
-      }
-    }
-    TableCheck();
-  }
-  
-  private boolean TableCheck() {
-    boolean TwitterIDsExists = false;
-    boolean TwitterFollowerIDsExists = false;
-    boolean TwitterFollowIDsExists = false;
-    boolean TwitterUserInfoExists = false;
-    boolean TwitterUserInfoURLsExists = false;
-    boolean RemoveFollowerIDsViewExists = false;
-    boolean UnFollowIDsExists = false;
-    boolean TableCheckStatus = true;
-    String SQL = "";
-    
-    try {
-      Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath);
-      Statement statement = connection.createStatement();
-      statement.setQueryTimeout(30);
-      
-      ResultSet result = statement.executeQuery("select * from sqlite_master");
-      while(result.next()) {
-        if(result.getString(2).equals("TwitterIDs")) TwitterIDsExists = true;
-        if(result.getString(2).equals("TwitterFollowerIDs")) TwitterFollowerIDsExists = true;
-        if(result.getString(2).equals("TwitterFollowIDs")) TwitterFollowIDsExists = true;
-        if(result.getString(2).equals("TwitterUserInfo")) TwitterUserInfoExists = true;
-        if(result.getString(2).equals("TwitterUserInfoURLs")) TwitterUserInfoURLsExists = true;
-        if(result.getString(2).equals("RemoveFollowerIDs")) RemoveFollowerIDsViewExists = true;
-        if(result.getString(2).equals("UnFollowIDs")) UnFollowIDsExists = true;
-      }
-      
-      if(!TwitterIDsExists) {
-        SQL = "create table TwitterIDs("
-            + "TwitterID text primary key,"
-            + "UpdateUserInfoTimes integer,"
-            + "UpdateUserInfoURLTimes integer,"
-            + "CreateTime text,"
-            + "UpdateTime text,"
-            + "BanUserFlg boolean,"
-            + "RemoveFlg boolean,"
-            + "UpdateFlg boolean);";
-        statement.execute(SQL);
-      }
-      
-      if(!TwitterFollowerIDsExists) {
-        SQL = "create table TwitterFollowerIDs("
-            + "TwitterID text primary key,"
-            + "RemoveFollowerFlg boolean,"
-            + "UpdateTime Text);";
-        statement.execute(SQL);
-      }
-      if(!TwitterFollowIDsExists) {
-        SQL = "create table TwitterFollowIDs("
-            + "TwitterID text primary key,"
-            + "NotFollowFlg boolean,"
-            + "FavoriteFlg boolean,"
-            + "UpdateTime Text);";
-        statement.execute(SQL);
-      }
-      if(!TwitterUserInfoExists) {
-        SQL = "create table TwitterUserInfo("
-            + "TwitterID text primary key,"
-            + "UserName text,"
-            + "UserScreenName text,"
-            + "UserDescripton text,"
-            + "UserTweetCount text,"
-            + "UserFollowCount text,"
-            + "UserFollowerCount text,"
-            + "UserFavouritesCount text,"
-            + "UserLocation text,"
-            + "UserCreatedAt text,"
-            + "UserBackGroundColor text);";
-        statement.execute(SQL);
-      }
-      if(!TwitterUserInfoURLsExists) {
-        SQL = "create table TwitterUserInfoURLs("
-            + "TwitterID text primary key,"
-            + "UserURL text,"
-            + "UserOriginalProfileImageURL text,"
-            + "UserProfileBackGroundImageURL text);";
-        statement.execute(SQL);
-      }
-      if(!RemoveFollowerIDsViewExists) {
-        SQL = "create view RemoveFollowerIDs as\n"
-            + "select TwitterIDs.TwitterID,TwitterUserInfo.UserScreenName,TwitterUserInfo.UserName\n"
-            + "from TwitterIDs\n"
-            + "left outer join TwitterFollowIDs on TwitterIDs.TwitterID = TwitterFollowIDs.TwitterID\n"
-            + "left outer join TwitterFollowerIDs on TwitterIDs.TwitterID = TwitterFollowerIDs.TwitterID\n"
-            + "left outer join TwitterUserInfo on TwitterIDs.TwitterID = TwitterUserInfo.TwitterID\n"
-            + "where TwitterFollowerIDs.RemoveFollowerFlg = 1\n"
-            + "and TwitterIDs.RemoveFlg != 1\n"
-            + "and TwitterFollowIDs.FavoriteFlg = 0";
-        statement.execute(SQL);
-      }
-      if(!UnFollowIDsExists) {
-        SQL = "create view UnFollowIDs as\n"
-            + "select TwitterID from TwitterFollowerIDs\n"
-            + "where not exists(\n"
-            + "  select TwitterFollowIDs.TwitterID from TwitterFollowIDs\n"
-            + "  where TwitterFollowIDs.TwitterID = TwitterFollowerIDs.TwitterID);";
-        statement.execute(SQL);
-      }
-      statement.close();
-      connection.close();
-    }catch (SQLException e) {
-      outputSQLStackTrace(e,SQL);
-    }
-    return TableCheckStatus;
+    InitSqlite initSqlite = new InitSqlite(UserName,SqliteDirPath,SqlitePath);
+    initSqlite.tableCheck(SqlitePath);
   }
   
   //sqliteのpragma設定
@@ -320,7 +195,6 @@ public class SqliteModule {
     return TwitterIDList;
   }
   
-  
   public boolean updateUserInfo(Map<String, String> UserIDMap) {
     Calendar cal = Calendar.getInstance();
     SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
@@ -357,7 +231,7 @@ public class SqliteModule {
                 + "where TwitterID = '" + temp + "'";
           }
           statement.execute(SQL);
-        }else{//既にユーザー情報が登録済み
+        }else{//ユーザー情報登録済み (既存レコードの物理削除 → 更新レコード挿入)
           //過去データの物理削除
           SQL = "delete from TwitterUserInfo\n"
               + "where TwitterID = '" + temp + "'";
@@ -406,9 +280,9 @@ public class SqliteModule {
   //  TwitterFollowIDs:リフォローしているユーザー かつ 凍結されているユーザー は除外する。
   //  TwitterFollowerIDs:フォロバされていないユーザー かつ 凍結されているユーザー は除外する。
   //RemoveUser = 2
-  //  TwitterIDs:フォローもフォロバもされていないユーザー と 凍結されているユーザー のみ取得する。
-  //  TwitterFollowIDs:リフォローしているユーザー と 凍結されているユーザー のみ取得する。
-  //  TwitterFollowerIDs:フォロバされていないユーザー と 凍結されているユーザー のみ取得する。
+  //  TwitterIDs:フォローもフォロバもされていないユーザー と 凍結されているユーザー を取得する。
+  //  TwitterFollowIDs:リフォローしているユーザー と 凍結されているユーザー を取得する。
+  //  TwitterFollowerIDs:フォロバされていないユーザー と 凍結されているユーザー を取得する。
   public List<String> getTwitterIDList(int UserListFlg, int RemoveUserFlg) {
     List<String> userList = new ArrayList<String>();
     String SQL="";

@@ -3,10 +3,8 @@ package com.TwitterModule;
 import java.io.*;
 import java.util.*;
 import java.util.regex.*;
-import java.text.*;
 
 import twitter4j.*;
-import twitter4j.auth.*;
 import twitter4j.conf.*;
 
 public class TwitterModule {
@@ -20,23 +18,8 @@ public class TwitterModule {
   private static String APIKeyPath = "D:/twitterApp/APIKey.xml";
   //private static String APIKeyPath = "/home/ishizuka/Temp/TwitterModule/APIKey.xml";
   private static long TwitterApiStopTimes = (15 * 60 * 1000) + (30 * 1000);// TwitterAPI制限回避→15分
-
-  public static void main(String args[]) throws TwitterException, IOException,ClassNotFoundException {
-    long start, end, TwitterIDsTime;
-    initTwitterModule();
-    
-    start = System.currentTimeMillis();
-    //新規追加ユーザーのチェック
-    twitterAddUserIDCheck();
-    //フォロー・リフォローのチェック
-    twitterUpdateUserIDCheck();
-    end = System.currentTimeMillis();
-    TwitterIDsTime = end - start;
-    System.out.println(TwitterIDsTime + "ms");
-    System.out.println("done!");
-  }
   
-  private static void initTwitterModule() throws ClassNotFoundException {
+  public TwitterModule() throws ClassNotFoundException {
     key = new APIKey(APIKeyPath);
     ConsumerKey = key.getConsumerKey();
     ConsumerSecret = key.getConsumerSecret();
@@ -62,7 +45,7 @@ public class TwitterModule {
    * FilterPattern = 1:TwitterIDsに登録されているユーザーを更新 (フォロー・フォロワーでもない他人ユーザー かつ アカウントが凍結されているユーザーを除く)
    * FilterPattern = 2:TwitterIDsに登録されているアカウントが凍結されているユーザーを更新
    * */
-  public static void selectUserInfoUpdate(int FilterPattern) throws TwitterException {
+  public void selectUserInfoUpdate(int FilterPattern) throws TwitterException {
     List<String> IDList = new ArrayList<String>();
     if(FilterPattern == 0) IDList = sqlite.getTwitterIDList(0,0);
     else if(FilterPattern == 1) IDList = sqlite.getTwitterIDList(0,1);
@@ -108,7 +91,6 @@ public class TwitterModule {
     String buffer = "";
     long getUserInfoOK = 0L;
     long onHold = 0L;
-    // hashmapを使うb
     for (String id : IDList) {
       if (!APILimit) {
         buffer = getUserInfo(twitter, id);
@@ -138,7 +120,7 @@ public class TwitterModule {
     return true;
   }
 
-  // 与えられたTwitterIDに該当するユーザー情報をカンマ区切りで返す
+  // TwitterIDに該当するユーザー情報を取得し、Sqlite挿入用のカンマ区切りデータを作成する
   public static String getUserInfo(Twitter twitter, String idStr) {
     long id = Long.parseLong(idStr);
     try {
@@ -154,6 +136,7 @@ public class TwitterModule {
       String userCreatedAt = String.valueOf(user.getCreatedAt());
       String userBackGroundColor = String.valueOf(user.getProfileBackgroundColor());
       System.out.println(id + ":[" + userName + "]の情報を取得しました。 ");
+      
       return "'" + id + "','" + userName + "','" + userScreenName + "','"
           + userDescription + "','" + userTweetCount + "','" + userFollowCount
           + "','" + userFollowerCount + "','" + userFavouritesCount + "','"
@@ -177,7 +160,20 @@ public class TwitterModule {
     }
   }
 
-  public static String inputString() {
+  /*public static void twitterRemoveUser(List<String> TwitterUserSet) {
+    TwitterFactory twitterFactory = new TwitterFactory(twitterConfigure().build());
+    Twitter twitter = twitterFactory.getInstance();
+    try{
+      for(String id : TwitterUserSet) {
+        twitter.destroyFriendship();
+      }
+    }catch(TwitterException e) {
+      
+    }
+    
+  }*/
+  
+  public String inputString() {
     String input;
     BufferedReader buf = new BufferedReader(new InputStreamReader(System.in), 1);
     try {
@@ -190,7 +186,7 @@ public class TwitterModule {
     return input;
   }
 
-  public static void twitterAddUserIDCheck() throws TwitterException {
+  public void twitterAddUserIDCheck() throws TwitterException {
     Boolean follow,follower;
     Set<String> nowFollowIDSet = new HashSet<String>();
     Set<String> nowFollowerIDSet = new HashSet<String>();
@@ -217,7 +213,7 @@ public class TwitterModule {
     sqlite.getTwitterIDList(0,0).forEach((v) -> {oldTwitterIDSet.add(v);});
     
     for (String id : nowTwitterIDSet) {
-      //既存のID情報に存在しない新規IDのチェック
+      //Sqliteに保存されていない新規IDのチェック
       if(!oldTwitterIDSet.contains(id)) {
         //0:フォロー, 1:フォローしていない
         if(nowFollowIDSet.contains(id)) {
@@ -268,7 +264,7 @@ public class TwitterModule {
         && (addTwitterIDMap.size() == 0)) System.out.println("新規追加IDはありません。");
   }
 
-  public static void twitterUpdateUserIDCheck() throws TwitterException {
+  public void twitterUpdateUserIDCheck() throws TwitterException {
     Set<String> nowFollowIDSet = new HashSet<String>();         //TwitterAPIから取得したフォローしているユーザID
     Set<String> nowFollowerIDSet = new HashSet<String>();       //TwitterAPIから取得したフォローされているユーザID
     Set<String> oldFollowIDSet = new HashSet<String>();         //DBから取得したフォローしているユーザID
@@ -329,6 +325,7 @@ public class TwitterModule {
     }
     notRemoveTwitterIDSet.forEach((v) -> {notRemoveTwitterIDMap.put(v, "0");});
     
+    //Sqliteを更新
     if(removeFollowIDMap.size() != 0) {
       sqlite.updateTwitterID(removeFollowIDMap, 1);
       System.out.println("removeFollow:");
@@ -363,10 +360,10 @@ public class TwitterModule {
     
     int updateSize = removeFollowIDMap.size() + removeFollowerIDMap.size() + removeTwitterIDMap.size()
         + followIDMap.size() + followerIDMap.size() + notRemoveTwitterIDMap.size();
-    if(updateSize == 0) System.out.println("リムーブ更新対象のIDはありません。");
+    if(updateSize == 0) System.out.println("リムーブ・更新対象のIDはありません。");
   }
 
-  public static List<String> getTwitterFollowerIDList() throws TwitterException {
+  public List<String> getTwitterFollowerIDList() throws TwitterException {
     long cursol = -1L;
     TwitterFactory twitterFactory = new TwitterFactory(twitterConfigure().build());
     Twitter twitter = twitterFactory.getInstance();
@@ -381,7 +378,7 @@ public class TwitterModule {
     return IDList;
   }
 
-  public static List<String> getTwitterFollowIDList() throws TwitterException {
+  public List<String> getTwitterFollowIDList() throws TwitterException {
     long cursol = -1L;
     TwitterFactory twitterFactory = new TwitterFactory(twitterConfigure().build());
     Twitter twitter = twitterFactory.getInstance();
@@ -397,7 +394,7 @@ public class TwitterModule {
   }
 
 
-  public static void outputText(List<String> list) throws IOException {
+  public void outputText(List<String> list) throws IOException {
     File file = new File("output.txt");
     PrintWriter printWriter = new PrintWriter(new BufferedWriter(
         new FileWriter(file)));
@@ -414,7 +411,7 @@ public class TwitterModule {
     return mat.replaceAll(replacement);
   }
 
-  public static String cutString(String str, String delimiter, int field) {
+  public String cutString(String str, String delimiter, int field) {
     int n = 0;
     for (String temp : str.split(delimiter)) {
       if (field == n)
@@ -425,7 +422,7 @@ public class TwitterModule {
     return "";
   }
 
-  public static String StringToUnicode(String str) {
+  public String StringToUnicode(String str) {
     String unicodeStr = "";
     for (char temp : str.toCharArray()) {
       unicodeStr += "\\u" + Integer.toHexString((int) temp);
