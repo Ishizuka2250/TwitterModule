@@ -1,6 +1,7 @@
 package com.TwitterModule;
 
 import java.io.*;
+import java.util.*;
 import org.w3c.dom.*;
 import javax.xml.parsers.*;
 
@@ -10,7 +11,7 @@ public class APIKey {
   private String ConsumerSecret = "";
   private String AccessToken = "";
   private String AccessTokenSecret = "";
-  private String use = "";
+  private String UserNo = "";
   private StringWriter StackTrace = new StringWriter();
   private PrintWriter pw = new PrintWriter(StackTrace);
   
@@ -18,23 +19,19 @@ public class APIKey {
     try {
       File existAPIKeyXml;
       existAPIKeyXml = new File(APIKeyXmlPath);
-      if(existAPIKeyXml.exists() == false) {
-        System.out.println("APIKey.xmlÇÃì«Ç›çûÇ›Ç…é∏îsÇµÇ‹ÇµÇΩ.");
-        System.exit(1);
-      }
-      openXml(APIKeyXmlPath);
+      if(existAPIKeyXml.exists() == false) APIKeyError("APIKey.xml ÇÃì«Ç›çûÇ›Ç…é∏îsÇµÇ‹ÇµÇΩ.");
+      openAPIKeyXml(APIKeyXmlPath);
       if((!UserName.equals("")) && (!ConsumerKey.equals("")) && (!ConsumerSecret.equals(""))
-        && (!AccessToken.equals("")) && (!AccessTokenSecret.equals("")) && (use.equals("1"))) {
+        && (!AccessToken.equals("")) && (!AccessTokenSecret.equals("")) && (UserNo.equals("1"))) {
         /*System.out.println("UserName:" + UserName);
         System.out.println("ConsumerKey:" + ConsumerKey);
         System.out.println("ConsumerSecret:" + ConsumerSecret);
         System.out.println("AccessToken:" + AccessToken);
         System.out.println("AccessTokenSecret:" + AccessTokenSecret);
-        System.out.println("use:" + use);*/
-        System.out.println("APIKey -- OK");
+        System.out.println("Use:" + UserNo);*/
+        System.out.println("APIKey.xml -- OK");
       }else {
-        System.out.println("APIKey -- NG");
-        System.exit(1);
+        APIKeyError("Error:APIKey.xml ÇÃÉLÅ[èÓïÒÇÃéQè∆Ç…é∏îsÇµÇ‹ÇµÇΩ.");
       }
     }catch (Exception e){
       e.printStackTrace(pw);
@@ -44,52 +41,56 @@ public class APIKey {
     }
   }
   
-  private void openXml(String APIKeyXmlPath) throws Exception {
+  private void openAPIKeyXml(String APIKeyXmlPath) throws Exception {
     DocumentBuilderFactory documentBuilderfactory = DocumentBuilderFactory.newInstance();
     DocumentBuilder documentBuilder = documentBuilderfactory.newDocumentBuilder();
     Document document = documentBuilder.parse(new File(APIKeyXmlPath));
-    int userCount = 0;
+    //int userCount = 0;
     Node apiKeyRoot = document.getDocumentElement();
-    Node userNode = apiKeyRoot.getFirstChild();
-    Node keyNode;
+    Node childNode = apiKeyRoot.getFirstChild();
+    //Node consumerNode,userNode;
+    Map<String,String> consumerMap,userMap;
     
-    while(userNode != null) {
-      //System.out.println("attribute:" + getAttribute(userNode,"user_name"));
-      if(userNode.getNodeType() == Node.ELEMENT_NODE) {
-        if(userNode.getNodeName().equals("user")) UserName = getAttribute(userNode,"user_name");
-        keyNode = userNode.getFirstChild();
-        while(keyNode != null) {
-          if(keyNode.getNodeType() == Node.ELEMENT_NODE) {
-            switch (keyNode.getNodeName()) {
-              case "use":
-                use = getTextNode(keyNode.getFirstChild());
-                if(Integer.parseInt(use) == 1) userCount++;
-                break;
-              case "consumer_key":
-                ConsumerKey = getTextNode(keyNode.getFirstChild());
-                break;
-              case "consumer_secret":
-                ConsumerSecret = getTextNode(keyNode.getFirstChild());
-                break;
-              case "access_token":
-                AccessToken = getTextNode(keyNode.getFirstChild());
-                break;
-              case "access_token_secret":
-                AccessTokenSecret = getTextNode(keyNode.getFirstChild());
-                break;
-            }
-          }
-          keyNode = keyNode.getNextSibling();
+    while(childNode != null) {
+      //System.out.println(childNode.getNodeName());
+      if(childNode.getNodeType() == Node.ELEMENT_NODE) {
+        if(childNode.getNodeName().equals("consumer")) {
+          consumerMap = getNodeItem(childNode.getFirstChild());
+          ConsumerKey = consumerMap.get("consumer_key");
+          ConsumerSecret = consumerMap.get("consumer_secret");
+          if((ConsumerKey == null) || (ConsumerSecret == null)) APIKeyError("Error:APIKey.xml ÇÃç\ï∂Ç…åÎÇËÇ™Ç†ÇËÇ‹Ç∑."); 
+        }else if(childNode.getNodeName().equals("user")){
+          UserName = getAttribute(childNode,"user_name");
+          userMap = getNodeItem(childNode.getFirstChild());
+          UserNo = userMap.get("user_no");
+          AccessToken = userMap.get("access_token");
+          AccessTokenSecret = userMap.get("access_token_secret");
+          if((UserNo == null) || (AccessToken == null) || (AccessTokenSecret == null)) APIKeyError("Error:APIKey.xml ÇÃç\ï∂Ç…åÎÇËÇ™Ç†ÇËÇ‹Ç∑.");
         }
       }
-      userNode = userNode.getNextSibling();
+      childNode = childNode.getNextSibling();
     }
-    
+  }
+  
+  private void APIKeyError(String msg) {
+    System.out.println(msg);
+    System.exit(1);
+  }
+  
+  private Map<String, String> getNodeItem(Node node) {
+    Map<String,String> nodeItem = new HashMap<String,String>();
+    while(node != null) {
+      //System.out.println("  " + node.getNodeName());
+      if(node.getNodeType() == Node.ELEMENT_NODE) nodeItem.put(node.getNodeName(), getTextNode(node.getFirstChild()));
+      node = node.getNextSibling();
+    }
+    return nodeItem;
   }
   
   private String getTextNode(Node node) {
     if(node != null) {
-      if(node.getNodeType() == node.TEXT_NODE) return node.getNodeValue();
+      //System.out.println("    " + node.getNodeValue());
+      if(node.getNodeType() == Node.TEXT_NODE) return node.getNodeValue();
       else return "";
     }else{
       return "";
