@@ -120,10 +120,11 @@ public class InitSqlite {
       }
       if(!UnFollowIDsExists) {
         SQL = "create view UnFollowIDs as\n"
-            + "select TwitterID from TwitterFollowerIDs\n"
-            + "where not exists(\n"
-            + "  select TwitterFollowIDs.TwitterID from TwitterFollowIDs\n"
-            + "  where TwitterFollowIDs.TwitterID = TwitterFollowerIDs.TwitterID);";
+            + "select TwitterIDs.TwitterID, TwitterUserInfo.UserScreenName, TwitterUserInfo.UserName\n"
+            + "from TwitterIDs\n"
+            + "left outer join TwitterUserInfo on TwitterIDs.TwitterID = TwitterUserInfo.TwitterID\n"
+            + "left outer join TwitterFollowIDs on TwitterIDs.TwitterID = TwitterFollowIDs.TwitterID\n"
+            + "where TwitterFollowIDs.NotFollowFlg = 1";
         statement.execute(SQL);
       }
       statement.close();

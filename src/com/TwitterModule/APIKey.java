@@ -2,73 +2,203 @@ package com.TwitterModule;
 
 import java.io.*;
 import java.util.*;
+import java.util.regex.*;
 import org.w3c.dom.*;
+
+import com.sun.org.apache.xml.internal.serializer.OutputPropertiesFactory;
+
 import javax.xml.parsers.*;
+import javax.xml.transform.*;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 
 public class APIKey {
+  private String XMLPath = "";
+  private Document document;
   private String UserName = "";
   private String ConsumerKey = "";
   private String ConsumerSecret = "";
   private String AccessToken = "";
   private String AccessTokenSecret = "";
   private String UserNo = "";
+  private String ErrorCheckMsg = "";
   private StringWriter StackTrace = new StringWriter();
   private PrintWriter pw = new PrintWriter(StackTrace);
   
-  APIKey(String APIKeyXmlPath) {
+  public APIKey(String APIKeyXmlPath) {
     try {
-      File existAPIKeyXml;
-      existAPIKeyXml = new File(APIKeyXmlPath);
-      if(existAPIKeyXml.exists() == false) APIKeyError("APIKey.xml の読み込みに失敗しました.");
-      openAPIKeyXml(APIKeyXmlPath);
-      if((!UserName.equals("")) && (!ConsumerKey.equals("")) && (!ConsumerSecret.equals(""))
-        && (!AccessToken.equals("")) && (!AccessTokenSecret.equals("")) && (UserNo.equals("1"))) {
-        /*System.out.println("UserName:" + UserName);
-        System.out.println("ConsumerKey:" + ConsumerKey);
-        System.out.println("ConsumerSecret:" + ConsumerSecret);
-        System.out.println("AccessToken:" + AccessToken);
-        System.out.println("AccessTokenSecret:" + AccessTokenSecret);
-        System.out.println("Use:" + UserNo);*/
-        System.out.println("APIKey.xml -- OK");
-      }else {
-        APIKeyError("Error:APIKey.xml のキー情報の参照に失敗しました.");
-      }
+      XMLPath = APIKeyXmlPath;
+      String tempFilePath = deleteIndentXML();
+      File tempFile = new File(tempFilePath);
+      DocumentBuilderFactory documentBuilderfactory = DocumentBuilderFactory.newInstance();
+      DocumentBuilder documentBuilder = documentBuilderfactory.newDocumentBuilder();
+      document = documentBuilder.parse(tempFile);
+      tempFile.delete();
+      readConsumerKey();
+      System.out.println("Info:APIKey.xmlの読み込み -- OK");
+      
     }catch (Exception e){
       e.printStackTrace(pw);
       pw.flush();
-      System.out.println(StackTrace.toString());
-      System.exit(1);
+      APIKeyError(StackTrace.toString());
     }
   }
   
-  private void openAPIKeyXml(String APIKeyXmlPath) throws Exception {
-    DocumentBuilderFactory documentBuilderfactory = DocumentBuilderFactory.newInstance();
-    DocumentBuilder documentBuilder = documentBuilderfactory.newDocumentBuilder();
-    Document document = documentBuilder.parse(new File(APIKeyXmlPath));
-    //int userCount = 0;
-    Node apiKeyRoot = document.getDocumentElement();
-    Node childNode = apiKeyRoot.getFirstChild();
-    //Node consumerNode,userNode;
-    Map<String,String> consumerMap,userMap;
-    
-    while(childNode != null) {
-      //System.out.println(childNode.getNodeName());
-      if(childNode.getNodeType() == Node.ELEMENT_NODE) {
-        if(childNode.getNodeName().equals("consumer")) {
+  private void readConsumerKey() {
+    try {
+      Node apiKeyRoot = document.getDocumentElement();
+      Node childNode = apiKeyRoot.getFirstChild();
+      Map<String, String> consumerMap;
+      while(childNode != null) {
+        if((childNode.getNodeType() == Node.ELEMENT_NODE) && (childNode.getNodeName().equals("consumer"))) {
           consumerMap = getNodeItem(childNode.getFirstChild());
           ConsumerKey = consumerMap.get("consumer_key");
           ConsumerSecret = consumerMap.get("consumer_secret");
           if((ConsumerKey == null) || (ConsumerSecret == null)) APIKeyError("Error:APIKey.xml の構文に誤りがあります."); 
-        }else if(childNode.getNodeName().equals("user")){
-          UserName = getAttribute(childNode,"user_name");
-          userMap = getNodeItem(childNode.getFirstChild());
-          UserNo = userMap.get("user_no");
-          AccessToken = userMap.get("access_token");
-          AccessTokenSecret = userMap.get("access_token_secret");
-          if((UserNo == null) || (AccessToken == null) || (AccessTokenSecret == null)) APIKeyError("Error:APIKey.xml の構文に誤りがあります.");
+          if(errorCheck(0)) APIKeyError(ErrorCheckMsg);
         }
+        childNode = childNode.getNextSibling();
+      }
+    }catch (Exception e) {
+      e.printStackTrace(pw);
+      pw.flush();
+      APIKeyError(StackTrace.toString());
+    }
+  }
+  
+  private boolean readAccessToken(String SetUserName) {
+    boolean existUserCheck = false;
+    try {
+      Node apiKeyRoot = document.getDocumentElement();
+      Node childNode = apiKeyRoot.getFirstChild();
+      Map<String,String> userMap;
+      
+      while(childNode != null) {
+        if((childNode.getNodeType() == Node.ELEMENT_NODE) && (childNode.getNodeName().equals("user"))){
+          UserName = getAttribute(childNode,"user_name");
+          if(UserName.equals(SetUserName)) {
+            existUserCheck = true;
+            userMap = getNodeItem(childNode.getFirstChild());
+            UserNo = userMap.get("user_no");
+            AccessToken = userMap.get("access_token");
+            AccessTokenSecret = userMap.get("access_token_secret");
+            if((UserNo == null) || (AccessToken == null) || (AccessTokenSecret == null)) APIKeyError("Error:APIKey.xml の構文に誤りがあります.");
+            if(errorCheck(1)) APIKeyError(ErrorCheckMsg);
+          }
+        }
+        childNode = childNode.getNextSibling();
+      }
+    } catch (Exception e) {
+      e.printStackTrace(pw);
+      pw.flush();
+      APIKeyError(StackTrace.toString());
+    }
+    return existUserCheck;
+  }
+  
+  public void AddAPIKeyInfo(String AddUserName, String AddAccessToken, String AddAccessTokenSecret) {
+    Node apiKeyRoot = document.getDocumentElement();
+    Node childNode = apiKeyRoot.getFirstChild();
+    Set<String> userNameSet = new HashSet<String>();
+    int userCount = 0;
+    while(childNode != null) {
+      if(childNode.getNodeType() == Node.ELEMENT_NODE) {
+        if(childNode.getNodeName().equals("user")) {
+          userNameSet.add(getAttribute(childNode, "user_name"));
+          userCount++;
+        }
+        
       }
       childNode = childNode.getNextSibling();
+    }
+    Element addUserElement = document.createElement("user");
+    addUserElement.setAttribute("user_name", AddUserName);
+    Element addUserNo = document.createElement("user_no");
+    addUserNo.setTextContent(String.valueOf(userCount + 1));
+    Element addAccessToken = document.createElement("access_token");
+    addAccessToken.setTextContent(AddAccessToken);
+    Element addAccessTokenSecret = document.createElement("access_token_secret");
+    addAccessTokenSecret.setTextContent(AddAccessTokenSecret);
+    
+    addUserElement.appendChild(addUserNo);
+    addUserElement.appendChild(addAccessToken);
+    addUserElement.appendChild(addAccessTokenSecret);
+    
+    apiKeyRoot.appendChild(addUserElement);
+    
+    try{
+      writeXML();
+    }catch (Exception e){
+      e.printStackTrace(pw);
+      pw.flush();
+      APIKeyError(StackTrace.toString());
+    }
+    
+  }
+  
+  private void writeXML() throws Exception {
+    TransformerFactory transFormerFactory = TransformerFactory.newInstance();
+    Transformer transformer = transFormerFactory.newTransformer();
+    transformer.setOutputProperty(OutputKeys.METHOD,"xml");
+    transformer.setOutputProperty(OutputKeys.INDENT,"yes");
+    transformer.setOutputProperty(OutputPropertiesFactory.S_KEY_INDENT_AMOUNT,"2");
+    transformer.transform(new DOMSource(document), new StreamResult(new File(XMLPath)));
+  }
+
+  private String deleteIndentXML() {
+    String tempFilePath="";
+    try {
+      String line;
+      File path = new File(XMLPath);
+      tempFilePath = path.getParent() + "/temp";
+      if(path.exists() == false) APIKeyError("APIKey.xml の読み込みに失敗しました.");
+      BufferedReader br = new BufferedReader(new FileReader(XMLPath));
+      BufferedWriter bw = new BufferedWriter(new FileWriter(tempFilePath));
+      while ((line = br.readLine()) != null) {
+        bw.write(replaceStr(line, "  ", ""));
+      }
+      bw.close();
+      br.close();
+    }catch(Exception e){
+      e.printStackTrace(pw);
+      pw.flush();
+      APIKeyError(pw.toString());
+    }
+    return tempFilePath;
+  }
+  
+  private boolean errorCheck(int CheckPattern) {
+    ErrorCheckMsg = "Error:入力データの参照に失敗しました.";
+    int errorCount=0;
+    if(CheckPattern == 0) {
+      if(!ConsumerKey.equals("")) {
+        errorCount++;
+        ErrorCheckMsg = ErrorCheckMsg + "\n" + "  ConsumerKey を入力してください.";
+      }
+      if(!ConsumerSecret.equals("")) {
+        errorCount++;
+        ErrorCheckMsg = ErrorCheckMsg + "\n" + "  ConsumerSecret を入力してください.";
+      }
+    }else if(CheckPattern == 1){
+      if(!UserName.equals("")) {
+        errorCount++;
+        ErrorCheckMsg = ErrorCheckMsg + "\n" + "  UserName を入力してください.";
+      }
+      if(!AccessToken.equals("")) {
+        errorCount++;
+        ErrorCheckMsg = ErrorCheckMsg + "\n" + "  AccessToken を入力してください.";
+      }
+      if(!AccessTokenSecret.equals("")) {
+        errorCount++;
+        ErrorCheckMsg = ErrorCheckMsg + "\n" + "  AccessTokenSecret を入力してください.";
+      }
+    }
+    
+    if(errorCount == 0) {
+      ErrorCheckMsg = "";
+      return true;
+    }else{
+      return false;
     }
   }
   
@@ -80,7 +210,6 @@ public class APIKey {
   private Map<String, String> getNodeItem(Node node) {
     Map<String,String> nodeItem = new HashMap<String,String>();
     while(node != null) {
-      //System.out.println("  " + node.getNodeName());
       if(node.getNodeType() == Node.ELEMENT_NODE) nodeItem.put(node.getNodeName(), getTextNode(node.getFirstChild()));
       node = node.getNextSibling();
     }
@@ -89,7 +218,6 @@ public class APIKey {
   
   private String getTextNode(Node node) {
     if(node != null) {
-      //System.out.println("    " + node.getNodeValue());
       if(node.getNodeType() == Node.TEXT_NODE) return node.getNodeValue();
       else return "";
     }else{
@@ -107,6 +235,17 @@ public class APIKey {
     }else{
       return "0";//not attribute
     }
+  }
+
+  private static String replaceStr(String str, String replace, String replacement) {
+    String reg = replace;
+    Pattern pat = Pattern.compile(reg);
+    Matcher mat = pat.matcher(str);
+    return mat.replaceAll(replacement);
+  }
+  
+  public boolean existUser(String userName) {
+    return readAccessToken(userName);
   }
   
   public String getUserName() {

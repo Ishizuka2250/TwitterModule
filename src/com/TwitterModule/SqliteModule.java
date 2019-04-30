@@ -23,9 +23,7 @@ public class SqliteModule {
   SqliteModule(String UserName) throws ClassNotFoundException {
     Class.forName("org.sqlite.JDBC");
     SqliteDirPath = "D:/twitterApp";
-    //SqliteDirPath = "/home/ishizuka/Temp/TwitterModule"; 
     SqlitePath = SqliteDirPath +  "/" + UserName + ".sqlite";
-    //SqlitePath = SqliteDirPath +  "/" + UserName + ".sqlite";
     InitSqlite initSqlite = new InitSqlite(UserName,SqliteDirPath,SqlitePath);
     initSqlite.tableCheck(SqlitePath);
   }

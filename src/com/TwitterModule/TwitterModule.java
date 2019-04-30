@@ -3,33 +3,77 @@ package com.TwitterModule;
 import java.io.*;
 import java.util.*;
 import java.util.regex.*;
-
 import twitter4j.*;
+import twitter4j.auth.*;
 import twitter4j.conf.*;
 
 public class TwitterModule {
-  private static String ConsumerKey;
-  private static String ConsumerSecret;
-  private static String AccessToken;
-  private static String AccessTokenSecret;
-  private static String UserName;
-  private static SqliteModule sqlite;
-  private static APIKey key;
-  private static String APIKeyPath = "D:/twitterApp/APIKey.xml";
-  //private static String APIKeyPath = "/home/ishizuka/Temp/TwitterModule/APIKey.xml";
-  private static long TwitterApiStopTimes = (15 * 60 * 1000) + (30 * 1000);// TwitterAPI制限回避→15分
+  private String ConsumerKey;
+  private String ConsumerSecret;
+  private String AccessToken;
+  private String AccessTokenSecret;
+  private SqliteModule sqlite;
+  private APIKey key;
+  private String APIKeyXMLPath = "D:/twitterApp/APIKey.xml";
+  private long TwitterApiStopTimes = (15 * 60 * 1000) + (30 * 1000);// TwitterAPI制限回避→15分
   
-  public TwitterModule() throws ClassNotFoundException {
-    key = new APIKey(APIKeyPath);
+  public TwitterModule(String UserName) throws ClassNotFoundException {
+    key = new APIKey(APIKeyXMLPath);
     ConsumerKey = key.getConsumerKey();
     ConsumerSecret = key.getConsumerSecret();
-    AccessToken = key.getAccessToken();
-    AccessTokenSecret = key.getAccessTokenSecret();
-    UserName = key.getUserName();
-    sqlite = new SqliteModule(UserName);
+    if(key.existUser(UserName)) {
+      AccessToken = key.getAccessToken();
+      AccessTokenSecret = key.getAccessTokenSecret();
+      sqlite = new SqliteModule(UserName);
+    }else{
+      twitterOAuthWizard(UserName);
+      System.exit(0);
+    }
   }
 
-  public static ConfigurationBuilder twitterConfigure() {
+  private void twitterOAuthWizard(String UserName) {
+    try {
+      Twitter twitter = new TwitterFactory().getInstance();
+      twitter.setOAuthConsumer(ConsumerKey, ConsumerSecret);
+      BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+      
+      System.out.print("Info:未登録のユーザーです. [" + UserName + "]を新規登録しますか(y/n)？ -- ");
+      String ans = br.readLine();
+      if(!ans.equals("y")) System.exit(0);
+      
+      RequestToken requestToken= twitter.getOAuthRequestToken();
+      System.out.println("Info:RequestToken, RequestTokenSecret を取得しました. \n" +
+        "-> [RequestToken]" + requestToken.getToken() + "\n" +
+        "-> [RequestTokenSecret]" + requestToken.getTokenSecret());
+      AccessToken accessToken = null;
+      while (accessToken == null) {
+        System.out.println("Info:下記のURLにアクセスし, 任意のTwitterアカウントで認証してください.");
+        System.out.println(requestToken.getAuthenticationURL());
+        System.out.print("Info:表示されたPINコードを入力してください. -- ");
+        String PINCode = br.readLine();
+        try {
+          if(PINCode.length() > 0) {
+            accessToken = twitter.getOAuthAccessToken(requestToken,PINCode);
+          }else{
+            accessToken = twitter.getOAuthAccessToken(requestToken);
+          }
+        }catch(TwitterException te) {
+          te.printStackTrace();
+        }
+      }
+      AccessToken = accessToken.getToken();
+      AccessTokenSecret = accessToken.getTokenSecret();
+      System.out.println("Info:AccessToken, AccessTokenSecret を取得しました. \n" +
+        "-> [AccessToken]" + AccessToken + "\n" +
+        "-> [AccessTokenSecret]" + AccessTokenSecret);
+      key.AddAPIKeyInfo(UserName, AccessToken, AccessTokenSecret);
+      System.out.println("Info:[" + UserName + "]を登録しました.");
+    }catch(Exception e){
+      e.printStackTrace();
+    }
+  }
+  
+  private ConfigurationBuilder twitterConfigure() {
     ConfigurationBuilder confbuilder = new ConfigurationBuilder();
     confbuilder.setDebugEnabled(true);
     confbuilder.setOAuthConsumerKey(ConsumerKey);
@@ -61,7 +105,7 @@ public class TwitterModule {
   /*
    * TwitterIDs.UpdateFlg = 1 のユーザー情報を更新
    */
-  public static void twitterUserInfoUpdate() throws TwitterException {
+  public void twitterUserInfoUpdate() throws TwitterException {
     List<String> updateIDList = sqlite.getUpdateUserIDList(1);
 
     // uploadFlg=1のものを処理
@@ -72,10 +116,12 @@ public class TwitterModule {
         System.out.println("API制限により処理を中断しました。\n-> " + TwitterApiStopTimes + "ms停止");
         try {
           Thread.sleep(TwitterApiStopTimes);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException ie) {
           StringWriter sw = new StringWriter();
           PrintWriter pw = new PrintWriter(sw);
-          System.out.println("InterruptedException:");
+          ie.printStackTrace(pw);
+          pw.flush();
+          System.out.println("InterruptedException:\n" + sw.toString());
         }
         updateIDList = sqlite.getUpdateUserIDList(1);
       }
@@ -83,7 +129,7 @@ public class TwitterModule {
   }
 
   // API制限までIDListのユーザー情報を取得する
-  public static boolean getTwitterUserInfo(List<String> IDList) throws TwitterException {
+  public boolean getTwitterUserInfo(List<String> IDList) throws TwitterException {
     TwitterFactory twitterFactory = new TwitterFactory(twitterConfigure().build());
     Twitter twitter = twitterFactory.getInstance();
     Map<String, String> UserInfoMap = new HashMap<String, String>();
@@ -120,8 +166,8 @@ public class TwitterModule {
     return true;
   }
 
-  // TwitterIDに該当するユーザー情報を取得し、Sqlite挿入用のカンマ区切りデータを作成する
-  public static String getUserInfo(Twitter twitter, String idStr) {
+  // TwitterIDに該当するユーザー情報を取得し、Sqlite挿入用のCSVデータを作成する
+  public String getUserInfo(Twitter twitter, String idStr) {
     long id = Long.parseLong(idStr);
     try {
       User user = twitter.showUser(id);
@@ -153,7 +199,7 @@ public class TwitterModule {
         PrintWriter pw = new PrintWriter(sw);
         te.printStackTrace(pw);
         pw.flush();
-        System.out.println(sw);
+        System.out.println("TwitterException:\n" + sw);
         System.exit(1);
       }
       return "";
@@ -404,14 +450,14 @@ public class TwitterModule {
     printWriter.close();
   }
 
-  public static String replaceStr(String str, String replace, String replacement) {
+  private static String replaceStr(String str, String replace, String replacement) {
     String reg = replace;
     Pattern pat = Pattern.compile(reg);
     Matcher mat = pat.matcher(str);
     return mat.replaceAll(replacement);
   }
 
-  public String cutString(String str, String delimiter, int field) {
+  private String cutString(String str, String delimiter, int field) {
     int n = 0;
     for (String temp : str.split(delimiter)) {
       if (field == n)
@@ -422,7 +468,7 @@ public class TwitterModule {
     return "";
   }
 
-  public String StringToUnicode(String str) {
+  private String StringToUnicode(String str) {
     String unicodeStr = "";
     for (char temp : str.toCharArray()) {
       unicodeStr += "\\u" + Integer.toHexString((int) temp);
