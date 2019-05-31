@@ -41,6 +41,7 @@ public class SqliteModule {
   private void outputSQLStackTrace(SQLException e,String SQL) {
     e.printStackTrace(pw);
     pw.flush();
+    System.out.println("Error:クエリの実行に失敗しました.");
     System.out.println(StackTrace.toString());
     System.out.println("--Missing SQL------------------------");
     System.out.println(SQL);
@@ -77,7 +78,7 @@ public class SqliteModule {
           SQL = "select Count(*) from TwitterFollowerIDs\n"
               + "where TwitterID = '" + id + "'";
         }else {
-          System.out.println("Unknown insertPattern -- " + insertPattern + "\nabort.");
+          System.out.println("Error:未定義の更新パターンが検知されました -- " + insertPattern);
           statement.close();
           connection.close();
           System.exit(1);
@@ -87,7 +88,7 @@ public class SqliteModule {
         
         //TwitterIDs/TwitterFollowIDs/TwitterFollowerIDs : レコード新規追加時(recordCount = 0)
         if(recordCount == 0) {
-          executeType = "insert";
+          executeType = "新規追加";
           if(insertPattern == 0) {
             //idの状態が"0"の場合:RemoveFlg = 0, idの状態が"1"の場合:RemoveFlg = 1
             if(IDMap.get(id).equals("0")) {
@@ -112,7 +113,7 @@ public class SqliteModule {
           }
         }else{
           //TwitterIDs/TwitterFollowIDs/TwitterFollowerIDs : 既存レコードの更新 (recordCount = 1)
-          executeType = "update";
+          executeType = "更新";
           //TwitterIDsテーブルの更新
           if(insertPattern == 0) {
             if(IDMap.get(id).equals("0")) {
@@ -146,9 +147,9 @@ public class SqliteModule {
       statement.execute("commit;");
       statement.close();
       connection.close();
-      if(insertPattern == 0) System.out.println("squite.TwitterIDs " + executeType + " -- ok.");
-      else if(insertPattern == 1) System.out.println("sqlite.TwitterFollowerIDs " + executeType + " -- ok.");
-      else if(insertPattern == 2) System.out.println("sqlite.TwitterFollowIDs " + executeType + " -- ok.");
+      if(insertPattern == 0) System.out.println("Info:squite.TwitterIDs " + executeType + " -- OK.");
+      else if(insertPattern == 1) System.out.println("Info:sqlite.TwitterFollowerIDs " + executeType + " -- OK.");
+      else if(insertPattern == 2) System.out.println("Info:sqlite.TwitterFollowIDs " + executeType + " -- OK.");
     }catch (SQLException e) {
       outputSQLStackTrace(e,SQL);
     }

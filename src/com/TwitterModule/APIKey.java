@@ -1,14 +1,29 @@
 package com.TwitterModule;
 
-import java.io.*;
-import java.util.*;
-import java.util.regex.*;
-import org.w3c.dom.*;
+import java.io.File;
+import java.io.StringWriter;
+import java.io.PrintWriter;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.FileReader;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
 
 import com.sun.org.apache.xml.internal.serializer.OutputPropertiesFactory;
-
-import javax.xml.parsers.*;
-import javax.xml.transform.*;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.OutputKeys;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
@@ -96,7 +111,7 @@ public class APIKey {
     return existUserCheck;
   }
   
-  public void AddAPIKeyInfo(String AddUserName, String AddAccessToken, String AddAccessTokenSecret) {
+  public void addAPIKeyInfo(String AddUserName, String AddAccessToken, String AddAccessTokenSecret) {
     Node apiKeyRoot = document.getDocumentElement();
     Node childNode = apiKeyRoot.getFirstChild();
     Set<String> userNameSet = new HashSet<String>();
@@ -151,7 +166,7 @@ public class APIKey {
       String line;
       File path = new File(XMLPath);
       tempFilePath = path.getParent() + "/temp";
-      if(path.exists() == false) APIKeyError("APIKey.xml ÇÃì«Ç›çûÇ›Ç…é∏îsÇµÇ‹ÇµÇΩ.");
+      if(path.exists() == false) APIKeyError("Error:APIKey.xml ÇÃì«Ç›çûÇ›Ç…é∏îsÇµÇ‹ÇµÇΩ.");
       BufferedReader br = new BufferedReader(new FileReader(XMLPath));
       BufferedWriter bw = new BufferedWriter(new FileWriter(tempFilePath));
       while ((line = br.readLine()) != null) {

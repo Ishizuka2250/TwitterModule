@@ -1,11 +1,26 @@
 package com.TwitterModule;
 
-import java.io.*;
-import java.util.*;
-import java.util.regex.*;
-import twitter4j.*;
-import twitter4j.auth.*;
-import twitter4j.conf.*;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.PrintWriter;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+import twitter4j.Twitter;
+import twitter4j.TwitterFactory;
+import twitter4j.User;
+import twitter4j.IDs;
+import twitter4j.auth.RequestToken;
+import twitter4j.auth.AccessToken;
+import twitter4j.conf.ConfigurationBuilder;
+import twitter4j.TwitterException;
 
 public class TwitterModule {
   private String ConsumerKey;
@@ -16,7 +31,9 @@ public class TwitterModule {
   private APIKey key;
   private String APIKeyXMLPath = "D:/twitterApp/APIKey.xml";
   private long TwitterApiStopTimes = (15 * 60 * 1000) + (30 * 1000);// TwitterAPI制限回避→15分
-  
+  private StringWriter StackTrace = new StringWriter();
+  private PrintWriter pw = new PrintWriter(StackTrace);
+
   public TwitterModule(String UserName) throws ClassNotFoundException {
     key = new APIKey(APIKeyXMLPath);
     ConsumerKey = key.getConsumerKey();
@@ -66,7 +83,7 @@ public class TwitterModule {
       System.out.println("Info:AccessToken, AccessTokenSecret を取得しました. \n" +
         "-> [AccessToken]" + AccessToken + "\n" +
         "-> [AccessTokenSecret]" + AccessTokenSecret);
-      key.AddAPIKeyInfo(UserName, AccessToken, AccessTokenSecret);
+      key.addAPIKeyInfo(UserName, AccessToken, AccessTokenSecret);
       System.out.println("Info:[" + UserName + "]を登録しました.");
     }catch(Exception e){
       e.printStackTrace();
@@ -95,7 +112,7 @@ public class TwitterModule {
     else if(FilterPattern == 1) IDList = sqlite.getTwitterIDList(0,1);
     else if(FilterPattern == 2) IDList = sqlite.getTwitterIDBan();
     else {
-      System.out.println("error:Unknown FilterPattern.");
+      System.out.println("Error:無効なフィルターパターンが検知されました.");
       System.exit(1);
     }
     sqlite.updateFlgsOn(IDList);
@@ -113,15 +130,13 @@ public class TwitterModule {
       if (getTwitterUserInfo(updateIDList) == true) {
         break;
       } else {
-        System.out.println("API制限により処理を中断しました。\n-> " + TwitterApiStopTimes + "ms停止");
+        System.out.println("Info:API制限により処理を中断しました(" + TwitterApiStopTimes + "ms停止)");
         try {
           Thread.sleep(TwitterApiStopTimes);
         } catch (InterruptedException ie) {
-          StringWriter sw = new StringWriter();
-          PrintWriter pw = new PrintWriter(sw);
           ie.printStackTrace(pw);
           pw.flush();
-          System.out.println("InterruptedException:\n" + sw.toString());
+          System.out.println("InterruptedException:\n" + StackTrace.toString());
         }
         updateIDList = sqlite.getUpdateUserIDList(1);
       }
@@ -156,13 +171,13 @@ public class TwitterModule {
     }
     //TwitterAPI制限による中断・全ユーザー情報取得完了時にSqliteへユーザ情報を格納する
     sqlite.updateUserInfo(UserInfoMap);
-    System.out.println("ユーザー取得完了：" + getUserInfoOK + "\n保留：" + onHold);
+    System.out.println("Info:ユーザー取得完了 -- " + getUserInfoOK + " 保留 -- " + onHold);
     
     //getUserInfoから-1を受け取った場合ユーザー取得処理を中断する
     if (buffer.equals("-1")) {
       return false;
     }
-    System.out.println("フォロワーIDの取得が完了しました。");
+    System.out.println("Info:フォロワーIDの取得が完了しました.");
     return true;
   }
 
@@ -181,7 +196,7 @@ public class TwitterModule {
       String userLocation = replaceStr(user.getLocation(), "'", "''");
       String userCreatedAt = String.valueOf(user.getCreatedAt());
       String userBackGroundColor = String.valueOf(user.getProfileBackgroundColor());
-      System.out.println(id + ":[" + userName + "]の情報を取得しました。 ");
+      System.out.println("Info:[" + userName + "] の情報を取得しました. ");
       
       return "'" + id + "','" + userName + "','" + userScreenName + "','"
           + userDescription + "','" + userTweetCount + "','" + userFollowCount
@@ -189,17 +204,15 @@ public class TwitterModule {
           + userLocation + "','" + userCreatedAt + "','" + userBackGroundColor + "'";
     } catch (TwitterException te) {
       if ((te.getErrorCode() == 63) || (te.getErrorCode() == 50)) {
-        System.out.println("[" + id + "] -> 凍結中のユーザーアカウントです。 ");
+        System.out.println("Info:[" + id + "] 凍結中のユーザーアカウントです. ");
         return "1";
       } else if (te.getErrorCode() == 88) {
-        // System.out.println("-> API制限に到達しました。5分間停止します。");
+        System.out.println("Info:API制限に到達しました。5分間停止します。");
         return "-1";
       } else {
-        StringWriter sw = new StringWriter();
-        PrintWriter pw = new PrintWriter(sw);
         te.printStackTrace(pw);
         pw.flush();
-        System.out.println("TwitterException:\n" + sw);
+        System.out.println("Error:アカウント情報取得中に問題が発生しました. \n" + StackTrace.toString());
         System.exit(1);
       }
       return "";
@@ -226,7 +239,7 @@ public class TwitterModule {
       System.out.print("tweet:");
       input = buf.readLine();
     } catch (IOException e) {
-      System.out.println("error:IOException");
+      System.out.println("Error:IOException");
       return "";
     }
     return input;
@@ -290,24 +303,24 @@ public class TwitterModule {
     //Twitterで取得した各ID情報をDB(Sqlite)へ保存
     if (addFollowIDMap.size() != 0) {
       sqlite.updateTwitterID(addFollowIDMap, 1);
-      addFollowIDMap.forEach((k,v) -> {System.out.println("  " + k + ":" + v);});
-      System.out.println("TwitterFollowIDs update -- ok");
+      System.out.println("Info:TwitterFollowIDs -- " + addFollowIDMap.size() + "件 追加");
+      //addFollowIDMap.forEach((k,v) -> {System.out.println("  " + k + ":" + v);});
     }
     if (addFollowerIDMap.size() != 0) {
       sqlite.updateTwitterID(addFollowerIDMap, 2);
-      addFollowerIDMap.forEach((k,v) -> {System.out.println("  " + k + ":" + v);});
-      System.out.println("TwitterFollowerIDs update -- ok");
+      System.out.println("Info:TwitterFollowerIDs -- " + addFollowerIDMap.size() + "件 追加");
+      //addFollowerIDMap.forEach((k,v) -> {System.out.println("  " + k + ":" + v);});
     }
       
     if (addTwitterIDMap.size() != 0) {
       sqlite.updateTwitterID(addTwitterIDMap, 0);
-      System.out.println("TwitterIDs update -- ok");
+      System.out.println("Info:TwitterIDs update -- " + addTwitterIDMap.size() + "件　追加");
       sqlite.updateFlgsOn(addTwitterIDList);
       twitterUserInfoUpdate();
     }
     
     if ((addFollowIDMap.size() == 0) && (addFollowerIDMap.size() == 0)
-        && (addTwitterIDMap.size() == 0)) System.out.println("新規追加IDはありません。");
+        && (addTwitterIDMap.size() == 0)) System.out.println("Info:新規追加IDはありません.");
   }
 
   public void twitterUpdateUserIDCheck() throws TwitterException {
@@ -374,39 +387,39 @@ public class TwitterModule {
     //Sqliteを更新
     if(removeFollowIDMap.size() != 0) {
       sqlite.updateTwitterID(removeFollowIDMap, 1);
-      System.out.println("removeFollow:");
-      removeFollowIDMap.forEach((k,v) -> System.out.println(k));
+      System.out.println("Info:フォローを外したユーザ");
+      removeFollowIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
     if(removeFollowerIDMap.size() != 0) {
       sqlite.updateTwitterID(removeFollowerIDMap, 2);
-      System.out.println("removeFollower");
-      removeFollowerIDMap.forEach((k,v) -> System.out.println(k));
+      System.out.println("Info:フォローを外されたユーザ");
+      removeFollowerIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
     if(removeTwitterIDMap.size() != 0) {
       sqlite.updateTwitterID(removeTwitterIDMap, 0);
-      System.out.println("removeTwitterID");
-      removeTwitterIDMap.forEach((k,v) -> System.out.println(k));
+      System.out.println("Info:フォローを外した & フォローを外されたユーザ");
+      removeTwitterIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
     
     if(followIDMap.size() != 0) {
       sqlite.updateTwitterID(followIDMap, 1);
-      System.out.println("followID");
-      followIDMap.forEach((k,v) -> System.out.println(k));
+      System.out.println("Info:フォローしたユーザ");
+      followIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
     if(followerIDMap.size() != 0) {
       sqlite.updateTwitterID(followerIDMap, 2);
-      System.out.println("followerID");
-      followerIDMap.forEach((k,v) -> System.out.println(k));
+      System.out.println("Info:フォローされたユーザ");
+      followerIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
     if(notRemoveTwitterIDMap.size() != 0) {
       sqlite.updateTwitterID(notRemoveTwitterIDMap, 0);
-      System.out.println("notRemoveTwitterID");
-      notRemoveTwitterIDMap.forEach((k,v) -> System.out.println(k));
+      //System.out.println("Info:再度フォローした もしくは 再度フォローされたユーザ");
+      //notRemoveTwitterIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
     
     int updateSize = removeFollowIDMap.size() + removeFollowerIDMap.size() + removeTwitterIDMap.size()
         + followIDMap.size() + followerIDMap.size() + notRemoveTwitterIDMap.size();
-    if(updateSize == 0) System.out.println("リムーブ・更新対象のIDはありません。");
+    if(updateSize == 0) System.out.println("Info:リムーブ・更新対象のIDはありません.");
   }
 
   public List<String> getTwitterFollowerIDList() throws TwitterException {
@@ -439,8 +452,7 @@ public class TwitterModule {
     return IDList;
   }
 
-
-  public void outputText(List<String> list) throws IOException {
+  /*public void outputText(List<String> list) throws IOException {
     File file = new File("output.txt");
     PrintWriter printWriter = new PrintWriter(new BufferedWriter(
         new FileWriter(file)));
@@ -448,7 +460,7 @@ public class TwitterModule {
       printWriter.println(info);
     }
     printWriter.close();
-  }
+  }*/
 
   private static String replaceStr(String str, String replace, String replacement) {
     String reg = replace;
@@ -457,7 +469,7 @@ public class TwitterModule {
     return mat.replaceAll(replacement);
   }
 
-  private String cutString(String str, String delimiter, int field) {
+  /*private String cutString(String str, String delimiter, int field) {
     int n = 0;
     for (String temp : str.split(delimiter)) {
       if (field == n)
@@ -474,6 +486,6 @@ public class TwitterModule {
       unicodeStr += "\\u" + Integer.toHexString((int) temp);
     }
     return unicodeStr;
-  }
+  }*/
 
 }

@@ -1,6 +1,10 @@
 package com.TwitterModule;
 
-import java.io.*;
+import java.io.File;
+import java.io.StringWriter;
+import java.io.PrintWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -19,7 +23,7 @@ public class InitSqlite {
       try {
         FileWriter emptySqlite = new FileWriter(existSqlite,false);
         emptySqlite.close();
-        System.out.println("D:/twitterApp/に" + UserName + ".Sqlite を作成しました。");
+        System.out.println("Info:[" + existSqlite.getParent() + "]に" + UserName + ".Sqlite を作成しました。");
       } catch (IOException e) {
         e.printStackTrace(pw);
         pw.flush();
@@ -138,6 +142,7 @@ public class InitSqlite {
   private void outputSQLStackTrace(SQLException e,String SQL) {
     e.printStackTrace(pw);
     pw.flush();
+    System.out.println("Error:クエリの実行に失敗しました.");
     System.out.println(StackTrace.toString());
     System.out.println("--Missing SQL------------------------");
     System.out.println(SQL);
