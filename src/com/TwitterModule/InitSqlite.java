@@ -11,15 +11,26 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+/**
+ * DB初期化クラス<br>
+ * sqliteの作成, テーブル・ビューの作成を行う.
+ * @author ishizuka
+ */
 public class InitSqlite {
   private StringWriter StackTrace = new StringWriter();
   private PrintWriter pw = new PrintWriter(StackTrace);
-
-  InitSqlite(String UserName, String SqliteDirPath, String SqlitePath) throws ClassNotFoundException  {
-    File existSqlite = new File(SqlitePath);
-    File existSqliteDir = new File(SqliteDirPath);
+  private String SqlitePath;
+  
+  /**
+   * DB初期化クラスのコンストラクタ
+   * @param UserName Twitterユーザー名
+   * @param SqlitePath DB(Sqlite)格納先のファイルパス
+   * @throws ClassNotFoundException
+   */
+  InitSqlite(String UserName, String SqlitePath) throws ClassNotFoundException  {
+    this.SqlitePath = SqlitePath;
+    File existSqlite = new File(this.SqlitePath);
     if(existSqlite.exists() == false) {
-      if(existSqliteDir.exists() == false) existSqliteDir.mkdirs();
       try {
         FileWriter emptySqlite = new FileWriter(existSqlite,false);
         emptySqlite.close();
@@ -32,7 +43,10 @@ public class InitSqlite {
     }
   }
 
-  public boolean tableCheck(String SqlitePath) {
+  /**
+   * DB内のテーブル・ビューをチェックし存在しなければ新規作成する. <br>
+   */
+  public void tableCheck() {
     boolean TwitterIDsExists = false;
     boolean TwitterFollowerIDsExists = false;
     boolean TwitterFollowIDsExists = false;
@@ -40,11 +54,10 @@ public class InitSqlite {
     boolean TwitterUserInfoURLsExists = false;
     boolean RemoveFollowerIDsViewExists = false;
     boolean UnFollowIDsExists = false;
-    boolean TableCheckStatus = true;
     String SQL = "";
     
     try {
-      Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath);
+      Connection connection = DriverManager.getConnection("jdbc:sqlite:" + this.SqlitePath);
       Statement statement = connection.createStatement();
       statement.setQueryTimeout(30);
       
@@ -136,9 +149,13 @@ public class InitSqlite {
     }catch (SQLException e) {
       outputSQLStackTrace(e,SQL);
     }
-    return TableCheckStatus;
   }
-
+  
+  /**
+   * StackTrace と 実行したクエリを表示して処理を強制終了する.
+   * @param e SQLException
+   * @param SQL 実行したクエリ
+   */
   private void outputSQLStackTrace(SQLException e,String SQL) {
     e.printStackTrace(pw);
     pw.flush();

@@ -24,8 +24,8 @@ public class SqliteModule {
     Class.forName("org.sqlite.JDBC");
     SqliteDirPath = "D:/twitterApp";
     SqlitePath = SqliteDirPath +  "/" + UserName + ".sqlite";
-    InitSqlite initSqlite = new InitSqlite(UserName,SqliteDirPath,SqlitePath);
-    initSqlite.tableCheck(SqlitePath);
+    InitSqlite initSqlite = new InitSqlite(UserName,SqlitePath);
+    initSqlite.tableCheck();
   }
   
   //sqliteÇÃpragmaê›íË

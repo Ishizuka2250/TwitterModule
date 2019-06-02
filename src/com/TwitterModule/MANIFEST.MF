@@ -1,7 +1,6 @@
 Manifest-Version: 1.0
 Main-Class: com.TwitterModule.Main
 Class-Path: . TwitterModule_lib/commons-lang3-3.4.jar TwitterModule_li
- b/sqlite-jdbc-3.8.11.2.jar TwitterModule_lib/twitter4j-async-4.0.4.ja
- r TwitterModule_lib/twitter4j-core-4.0.4.jar TwitterModule_lib/twitte
- r4j-examples-4.0.4.jar TwitterModule_lib/twitter4j-media-support-4.0.
- 4.jar TwitterModule_lib/twitter4j-stream-4.0.4.jar
+ b/sqlite-jdbc-3.8.11.2.jar TwitterModule_lib/twitter4j-async-4.0.7.ja
+ r TwitterModule_lib/twitter4j-core-4.0.7.jar TwitterModule_lib/twitte
+ r4j-examples-4.0.7.jar TwitterModule_lib/twitter4j-stream-4.0.7.jar
