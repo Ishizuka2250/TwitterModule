@@ -20,6 +20,24 @@ public class SqliteModule {
   private StringWriter StackTrace = new StringWriter();
   private PrintWriter pw = new PrintWriter(StackTrace);
   
+  public enum TableName {
+    TWITTER_IDS,
+    TWITTER_FOLLOW_IDS,
+    TWITTER_FOLLOWER_IDS
+  }
+  
+  public enum TwitterIDPattern {
+    ALL_ID,
+    FOLLOW_ID,
+    FOLLOWER_ID
+  }
+  
+  public enum UserPattern {
+    ALL,
+    NO_REMOVE_USER_AND_BANUSER,
+    REMOVE_USER_AND_BANUSER
+  }
+  
   SqliteModule(String UserName) throws ClassNotFoundException {
     Class.forName("org.sqlite.JDBC");
     SqliteDirPath = "D:/twitterApp";
@@ -53,7 +71,7 @@ public class SqliteModule {
   //insertPattern = 0 TwitterIDsテーブルの更新
   //insertPattern = 1 TwitterfollowIDsテーブルの更新
   //insertPattern = 2 TwitterFollowerIDsテーブルの更新
-  public void updateTwitterID(Map<String,String> IDMap, int insertPattern) {
+  public void updateTwitterID(Map<String,String> IDMap, TableName updateTableName) {
     String SQL = "";
     String executeType = "";
     long recordCount;
@@ -68,88 +86,94 @@ public class SqliteModule {
       
       //TwitterIDs/TwitterFollowIDs/TwitterFollowerIDs : 既存レコードのチェック
       for(String id : IDMap.keySet()) {
-        if(insertPattern == 0) {
-          SQL = "select Count(*) from TwitterIDs\n"
-              + "where TwitterID = '" + id + "'";
-        }else if(insertPattern == 1) {
-          SQL = "select Count(*) from TwitterFollowIDs\n"
-              + "where TwitterID = '" + id + "'";
-        }else if(insertPattern == 2) {
-          SQL = "select Count(*) from TwitterFollowerIDs\n"
-              + "where TwitterID = '" + id + "'";
-        }else {
-          System.out.println("Error:未定義の更新パターンが検知されました -- " + insertPattern);
-          statement.close();
-          connection.close();
-          System.exit(1);
+        switch (updateTableName) {
+          case TWITTER_IDS:
+            SQL = "select Count(*) from TwitterIDs\n"
+                + "where TwitterID = '" + id + "'";
+            break;
+          
+          case TWITTER_FOLLOW_IDS:
+            SQL = "select Count(*) from TwitterFollowIDs\n"
+                + "where TwitterID = '" + id + "'";
+            break;
+            
+          case TWITTER_FOLLOWER_IDS:
+            SQL = "select Count(*) from TwitterFollowerIDs\n"
+                + "where TwitterID = '" + id + "'";
+            break;
         }
+        
         ResultSet result = statement.executeQuery(SQL);
         recordCount = result.getInt(1);
         
         //TwitterIDs/TwitterFollowIDs/TwitterFollowerIDs : レコード新規追加時(recordCount = 0)
         if(recordCount == 0) {
           executeType = "新規追加";
-          if(insertPattern == 0) {
-            //idの状態が"0"の場合:RemoveFlg = 0, idの状態が"1"の場合:RemoveFlg = 1
-            if(IDMap.get(id).equals("0")) {
-              statement.execute("insert into TwitterIDs values('" + id + "', 0, 0, '" + sdf.format(cal.getTime()) + "', '000000000000', '0', '0', '0')");
-            }else{
-              statement.execute("insert into TwitterIDs values('" + id + "', 0, 0, '" + sdf.format(cal.getTime()) + "', '000000000000', '0', '1', '0')");
-            }
-          }else if(insertPattern == 1) {
-            //idの状態が"0"の場合:NotFollowFlg = 0, idの状態が"1"の場合:NotFollowFlg = 1
-            if(IDMap.get(id).equals("0")) {
-              statement.execute("insert into TwitterFollowIDs values('" + id + "', '0', '0','" + sdf.format(cal.getTime()) + "');");
-            }else{
-              statement.execute("insert into TwitterFollowIDs values('" + id + "', '1', '0','" + sdf.format(cal.getTime()) + "');");
-            }
-          }else if(insertPattern == 2) {
-            //idの状態が"0"の場合:RemoveFollowFlg = 0, idの状態が"1"の場合:RemoveFollowFlg = 1
-            if(IDMap.get(id).equals("0")) {
-              statement.execute("insert into TwitterFollowerIDs values('" + id + "', '0','" + sdf.format(cal.getTime()) + "');");
-            }else{
-              statement.execute("insert into TwitterFollowerIDs values('" + id + "', '1','" + sdf.format(cal.getTime()) + "');");
-            }
+          switch (updateTableName) {
+            case TWITTER_IDS:
+              //idの状態が"0"の場合:RemoveFlg = 0, idの状態が"1"の場合:RemoveFlg = 1
+              if(IDMap.get(id).equals("0")) {
+                statement.execute("insert into TwitterIDs values('" + id + "', 0, 0, '" + sdf.format(cal.getTime()) + "', '000000000000', '0', '0', '0')");
+              }else{
+                statement.execute("insert into TwitterIDs values('" + id + "', 0, 0, '" + sdf.format(cal.getTime()) + "', '000000000000', '0', '1', '0')");
+              }break;
+            
+            case TWITTER_FOLLOW_IDS:
+              //idの状態が"0"の場合:NotFollowFlg = 0, idの状態が"1"の場合:NotFollowFlg = 1
+              if(IDMap.get(id).equals("0")) {
+                statement.execute("insert into TwitterFollowIDs values('" + id + "', '0', '0','" + sdf.format(cal.getTime()) + "');");
+              }else{
+                statement.execute("insert into TwitterFollowIDs values('" + id + "', '1', '0','" + sdf.format(cal.getTime()) + "');");
+              }break;
+              
+            case TWITTER_FOLLOWER_IDS:
+              //idの状態が"0"の場合:RemoveFollowFlg = 0, idの状態が"1"の場合:RemoveFollowFlg = 1
+              if(IDMap.get(id).equals("0")) {
+                statement.execute("insert into TwitterFollowerIDs values('" + id + "', '0','" + sdf.format(cal.getTime()) + "');");
+              }else{
+                statement.execute("insert into TwitterFollowerIDs values('" + id + "', '1','" + sdf.format(cal.getTime()) + "');");
+              }break;
           }
         }else{
           //TwitterIDs/TwitterFollowIDs/TwitterFollowerIDs : 既存レコードの更新 (recordCount = 1)
           executeType = "更新";
           //TwitterIDsテーブルの更新
-          if(insertPattern == 0) {
-            if(IDMap.get(id).equals("0")) {
-              statement.execute("update TwitterIDs set RemoveFlg = 0 where TwitterID = '" + id + "';");
-            }else {
-              statement.execute("update TwitterIDs set RemoveFlg = 1 where TwitterID = '" + id + "';");
-            }
-            statement.execute("update TwitterIDs set UpdateTime = '" + sdf.format(cal.getTime()) + "' where TwitterID = '" + id + "';");
+          switch (updateTableName) {
+            case TWITTER_IDS:
+              if(IDMap.get(id).equals("0")) {
+                statement.execute("update TwitterIDs set RemoveFlg = 0 where TwitterID = '" + id + "';");
+              }else {
+                statement.execute("update TwitterIDs set RemoveFlg = 1 where TwitterID = '" + id + "';");
+              }
+              statement.execute("update TwitterIDs set UpdateTime = '" + sdf.format(cal.getTime()) + "' where TwitterID = '" + id + "';");
+              break;
+              
+            case TWITTER_FOLLOW_IDS:
+              if(IDMap.get(id).equals("0")) {
+                statement.execute("update TwitterFollowIDs set NotFollowFlg = 0 where TwitterID = '" + id + "';");
+              }else {
+                statement.execute("update TwitterFollowIDs set NotFollowFlg = 1 where TwitterID = '" + id + "';");
+              }
+              statement.execute("update TwitterFollowIDs set UpdateTime = '" + sdf.format(cal.getTime()) + "' where TwitterID = '" + id + "';");
+              break;
+              
+            case TWITTER_FOLLOWER_IDS:
+              if(IDMap.get(id).equals("0")) {
+                statement.execute("update TwitterFollowerIDs set RemoveFollowerFlg = 0 where TwitterID = '" + id + "';");
+              }else {
+                statement.execute("update TwitterFollowerIDs set RemoveFollowerFlg = 1 where TwitterID = '" + id + "';");
+              }
+              statement.execute("update TwitterFollowerIDs set UpdateTime = '" + sdf.format(cal.getTime()) + "' where TwitterID = '" + id + "';");
+              break;
           }
-          //TwitterFollowテーブルの更新
-          if(insertPattern == 1) {
-            if(IDMap.get(id).equals("0")) {
-              statement.execute("update TwitterFollowIDs set NotFollowFlg = 0 where TwitterID = '" + id + "';");
-            }else {
-              statement.execute("update TwitterFollowIDs set NotFollowFlg = 1 where TwitterID = '" + id + "';");
-            }
-            statement.execute("update TwitterFollowIDs set UpdateTime = '" + sdf.format(cal.getTime()) + "' where TwitterID = '" + id + "';");
-          }
-          //TwitterFollowerテーブルの更新
-          if(insertPattern == 2) {
-            if(IDMap.get(id).equals("0")) {
-              statement.execute("update TwitterFollowerIDs set RemoveFollowerFlg = 0 where TwitterID = '" + id + "';");
-            }else {
-              statement.execute("update TwitterFollowerIDs set RemoveFollowerFlg = 1 where TwitterID = '" + id + "';");
-            }
-            statement.execute("update TwitterFollowerIDs set UpdateTime = '" + sdf.format(cal.getTime()) + "' where TwitterID = '" + id + "';");
-          }
-          
         }
       }
       statement.execute("commit;");
       statement.close();
       connection.close();
-      if(insertPattern == 0) System.out.println("Info:squite.TwitterIDs " + executeType + " -- OK.");
-      else if(insertPattern == 1) System.out.println("Info:sqlite.TwitterFollowerIDs " + executeType + " -- OK.");
-      else if(insertPattern == 2) System.out.println("Info:sqlite.TwitterFollowIDs " + executeType + " -- OK.");
+      if(updateTableName == TableName.TWITTER_IDS) System.out.println("Info:squite.TwitterIDs " + executeType + " -- OK.");
+      else if(updateTableName == TableName.TWITTER_FOLLOW_IDS) System.out.println("Info:sqlite.TwitterFollowIDs " + executeType + " -- OK.");
+      else if(updateTableName == TableName.TWITTER_FOLLOWER_IDS) System.out.println("Info:sqlite.TwitterFollowerIDs " + executeType + " -- OK.");
     }catch (SQLException e) {
       outputSQLStackTrace(e,SQL);
     }
@@ -282,12 +306,12 @@ public class SqliteModule {
   //  TwitterIDs:フォローもフォロバもされていないユーザー と 凍結されているユーザー を取得する。
   //  TwitterFollowIDs:リフォローしているユーザー と 凍結されているユーザー を取得する。
   //  TwitterFollowerIDs:フォロバされていないユーザー と 凍結されているユーザー を取得する。
-  public List<String> getTwitterIDList(int UserListFlg, int RemoveUserFlg) {
+  public List<String> getTwitterIDList(TwitterIDPattern twitterIDPattern, UserPattern userPattern) {
     List<String> userList = new ArrayList<String>();
     String SQL="";
     int banUserFlg,removeFlg,notFollowFlg,removeFollowerFlg;
     
-    if((RemoveUserFlg == 0) || (RemoveUserFlg == 1)) {
+    if((userPattern == UserPattern.ALL) || (userPattern == UserPattern.NO_REMOVE_USER_AND_BANUSER)) {
       banUserFlg = removeFlg = notFollowFlg = removeFollowerFlg = 0;
     }else{
       banUserFlg = removeFlg = notFollowFlg = removeFollowerFlg = 1;
@@ -297,46 +321,53 @@ public class SqliteModule {
       Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath);
       Statement statement = connection.createStatement();
       statement.setQueryTimeout(30);
-      if(UserListFlg == 0) {
-        if(RemoveUserFlg == 0) {
-          SQL = "select TwitterIDs.TwitterID from TwitterIDs";
-        }else{
-          SQL = "select TwitterIDs.TwitterID from TwitterIDs\n"
-              + "where TwitterIDs.RemoveFlg = " + removeFlg + "\n";
-          if(RemoveUserFlg == 1) {
-            SQL = SQL + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
-          }else if(RemoveUserFlg == 2){
-            SQL = SQL + "or TwitterIDs.BanUserFlg = " + banUserFlg + ";";
-          }
-        }
-      }else if(UserListFlg == 1){
-        if(RemoveUserFlg == 0) {
-          SQL = "select TwitterFollowIDs.TwitterID from TwitterFollowIDs";
-        }else{
-          SQL = "select TwitterFollowIDs.TwitterID from TwitterFollowIDs\n"
-              + "left outer join TwitterIDs\n"
-              + "on TwitterFollowIDs.TwitterID = TwitterIDs.TwitterID\n"
-              + "where TwitterFollowIDs.NotFollowFlg = " + notFollowFlg + "\n";
-          if(RemoveUserFlg == 1) {
-            SQL = SQL + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
-          }else if(RemoveUserFlg == 2){
-            SQL = SQL + "or TwitterIDs.BanUserFlg = " + banUserFlg + ";";
-          }
-        }
-      }else if(UserListFlg == 2) {
-        if(RemoveUserFlg == 0) {
-          SQL = "select TwitterFollowerIDs.TwitterID from TwitterFollowerIDs";
-        }else{
-          SQL = "select TwitterFollowerIDs.TwitterID from TwitterFollowerIDs\n"
-              + "left outer join TwitterIDs\n"
-              + "on TwitterFollowerIDs.TwitterID = TwitterIDs.TwitterID\n"
-              + "where TwitterFollowerIDs.RemoveFollowerFlg = " + removeFollowerFlg + "\n";
-          if(RemoveUserFlg == 1) {
-            SQL = SQL + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
-          }else if(RemoveUserFlg == 2){
-            SQL = SQL + "or TwitterIDs.BanUserFlg = " + banUserFlg + ";";
-          }
-        }
+      switch (twitterIDPattern) {
+        case ALL_ID:
+          if(userPattern == UserPattern.ALL) {
+            SQL = "select TwitterIDs.TwitterID from TwitterIDs";
+          }else{
+            SQL = "select TwitterIDs.TwitterID from TwitterIDs\n"
+                + "where TwitterIDs.RemoveFlg = " + removeFlg + "\n";
+            if(userPattern == UserPattern.NO_REMOVE_USER_AND_BANUSER) {
+              SQL = SQL + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
+            }else if(userPattern == UserPattern.REMOVE_USER_AND_BANUSER){
+              SQL = SQL + "or TwitterIDs.BanUserFlg = " + banUserFlg + ";";
+            }
+          }break;
+        
+        case FOLLOW_ID:
+          if(userPattern == UserPattern.ALL) {
+            SQL = "select TwitterFollowIDs.TwitterID from TwitterFollowIDs";
+          }else{
+            SQL = "select TwitterFollowIDs.TwitterID from TwitterFollowIDs\n"
+                + "left outer join TwitterIDs\n"
+                + "on TwitterFollowIDs.TwitterID = TwitterIDs.TwitterID\n"
+                + "where TwitterFollowIDs.NotFollowFlg = " + notFollowFlg + "\n";
+            if(userPattern == UserPattern.NO_REMOVE_USER_AND_BANUSER) {
+              SQL = SQL + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
+            }else if(userPattern == UserPattern.REMOVE_USER_AND_BANUSER){
+              SQL = SQL + "or TwitterIDs.BanUserFlg = " + banUserFlg + ";";
+            }
+          }break;
+        
+        case FOLLOWER_ID:
+          if(userPattern == UserPattern.ALL) {
+            SQL = "select TwitterFollowerIDs.TwitterID from TwitterFollowerIDs";
+          }else{
+            SQL = "select TwitterFollowerIDs.TwitterID from TwitterFollowerIDs\n"
+                + "left outer join TwitterIDs\n"
+                + "on TwitterFollowerIDs.TwitterID = TwitterIDs.TwitterID\n"
+                + "where TwitterFollowerIDs.RemoveFollowerFlg = " + removeFollowerFlg + "\n";
+            if(userPattern == UserPattern.NO_REMOVE_USER_AND_BANUSER) {
+              SQL = SQL + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
+            }else if(userPattern == UserPattern.REMOVE_USER_AND_BANUSER){
+              SQL = SQL + "or TwitterIDs.BanUserFlg = " + banUserFlg + ";";
+            }
+          }break;
+        
+        default:
+          System.out.println("error:unknown TwitterIDPattern.");
+          System.exit(1);
       }
       ResultSet result = statement.executeQuery(SQL);
       while(result.next()) {
