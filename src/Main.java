@@ -1,7 +1,8 @@
-package com.TwitterModule;
+
 
 import java.io.IOException;
 import twitter4j.TwitterException;
+import com.TwitterModule.TwitterModule;
 
 public class Main {
   public static void main(String args[]) throws TwitterException, IOException,ClassNotFoundException {
