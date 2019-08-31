@@ -1,8 +1,10 @@
 
 
 import java.io.IOException;
+
 import twitter4j.TwitterException;
-import com.TwitterModule.TwitterModule;
+
+import com.TwitterModule.Twitter.TwitterIO;
 
 public class Main {
   public static void main(String args[]) throws TwitterException, IOException,ClassNotFoundException {
@@ -16,7 +18,7 @@ public class Main {
       userName = args[0];
     }
       
-    TwitterModule twitter = new TwitterModule(userName);
+    TwitterIO twitter = new TwitterIO(userName);
     start = System.currentTimeMillis();
     
     //新規追加ユーザーのチェック

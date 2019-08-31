@@ -7,9 +7,9 @@ import java.util.Set;
 import twitter4j.IDs;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
-import com.TwitterModule.SqliteModule;
-import com.TwitterModule.SqliteModule.TwitterIDPattern;
-import com.TwitterModule.SqliteModule.UserPattern;
+import com.TwitterModule.SqliteIO;
+import com.TwitterModule.SqliteIO.TwitterIDPattern;
+import com.TwitterModule.SqliteIO.UserPattern;
 
 public class TwitterIDSets {
   private Twitter twitter;
@@ -35,7 +35,7 @@ public class TwitterIDSets {
     }
   }
 
-  public TwitterIDSets(SqliteModule sqlite) {
+  public TwitterIDSets(SqliteIO sqlite) {
     sqlite.getTwitterIDList(TwitterIDPattern.ALL_ID, UserPattern.ALL).forEach(it -> {
       AllIDSet.add(it);
     });
@@ -53,7 +53,7 @@ public class TwitterIDSets {
     });
   }
   
-  public List<String> getTwitterFollowIDList() throws TwitterException {
+  private List<String> getTwitterFollowIDList() throws TwitterException {
     long cursol = -1L;
     //Twitter twitter = TwitterCore.getTwitterInstance();
     IDs ids;
@@ -67,7 +67,7 @@ public class TwitterIDSets {
     return IDList;
   }
 
-  public List<String> getTwitterFollowerIDList() throws TwitterException {
+  private List<String> getTwitterFollowerIDList() throws TwitterException {
     long cursol = -1L;
     //Twitter twitter = TwitterCore.getTwitterInstance();
     IDs ids;

@@ -1,4 +1,4 @@
-package com.TwitterModule;
+package com.TwitterModule.Twitter;
 
 import java.io.StringWriter;
 import java.io.PrintWriter;
@@ -8,16 +8,16 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.HashSet;
-import twitter4j.TwitterException;
-import com.TwitterModule.Twitter.TwitterCore;
-import com.TwitterModule.Twitter.TwitterIDSets;
-import com.TwitterModule.Twitter.TwitterUserInfo;
-import com.TwitterModule.SqliteModule.TwitterIDPattern;
-import com.TwitterModule.SqliteModule.UserPattern;
-import com.TwitterModule.SqliteModule.TableName;
 
-public class TwitterModule {
-  private SqliteModule Sqlite;
+import twitter4j.TwitterException;
+
+import com.TwitterModule.SqliteIO;
+import com.TwitterModule.SqliteIO.TwitterIDPattern;
+import com.TwitterModule.SqliteIO.UserPattern;
+import com.TwitterModule.SqliteIO.TableName;
+
+public class TwitterIO {
+  private SqliteIO Sqlite;
   private TwitterCore TwitterCore;
   private long TwitterApiStopTimes = (15 * 60 * 1000) + (30 * 1000);// TwitterAPIêßå¿âÒîÅ®15ï™
   private StringWriter StackTrace = new StringWriter();
@@ -38,9 +38,9 @@ public class TwitterModule {
     NOT_REMOVE
   }
   
-  public TwitterModule(String UserName) throws ClassNotFoundException {
+  public TwitterIO(String UserName) throws ClassNotFoundException {
     TwitterCore = new TwitterCore(UserName);
-    Sqlite = new SqliteModule(UserName);
+    Sqlite = new SqliteIO(UserName);
   }
   
   /* 

@@ -13,9 +13,10 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import com.TwitterModule.TwitterModule.FollowState;;
 
-public class SqliteModule {
+import com.TwitterModule.Twitter.TwitterIO.FollowState;
+
+public class SqliteIO {
   private String SqliteDirPath;
   private String SqlitePath;
   private StringWriter StackTrace = new StringWriter();
@@ -45,7 +46,7 @@ public class SqliteModule {
     REMOVE_USER_AND_BANUSER
   }
   
-  SqliteModule(String UserName) throws ClassNotFoundException {
+  public SqliteIO(String UserName) throws ClassNotFoundException {
     Class.forName("org.sqlite.JDBC");
     SqliteDirPath = "D:/twitterApp";
     SqlitePath = SqliteDirPath +  "/" + UserName + ".sqlite";
