@@ -18,6 +18,7 @@ public class TwitterUserInfo {
   public String UserBackGroundColor;
   
   public TwitterUserInfo(User user) {
+    ID = String.valueOf(user.getId());
     UserName = sanitizing(user.getName());
     UserScreenName = sanitizing(user.getScreenName());
     UserDescription = sanitizing(user.getDescription());

@@ -116,7 +116,7 @@ public class TwitterModule {
   // TwitterIDに該当するユーザー情報を取得し、Sqlite挿入用のCSVデータを作成する
   public String getUserInfo(String id) {
     try {
-      TwitterUserInfo userInfo = new TwitterUserInfo(TwitterCore.getTwitterInstance().showUser(id));
+      TwitterUserInfo userInfo = new TwitterUserInfo(TwitterCore.getTwitterInstance().showUser(Long.valueOf(id)));
       System.out.println("Info:[" + userInfo.UserName + "] の情報を取得しました. ");
       return userInfo.toString();
     } catch (TwitterException te) {
