@@ -53,7 +53,7 @@ public class InitSqlite {
     boolean TwitterUserInfoExists = false;
     boolean TwitterUserInfoURLsExists = false;
     boolean RemoveFollowerIDsViewExists = false;
-    boolean UnFollowIDsExists = false;
+    boolean RemoveFollowIDsExists = false;
     String SQL = "";
     
     try {
@@ -69,7 +69,7 @@ public class InitSqlite {
         if(result.getString(2).equals("TwitterUserInfo")) TwitterUserInfoExists = true;
         if(result.getString(2).equals("TwitterUserInfoURLs")) TwitterUserInfoURLsExists = true;
         if(result.getString(2).equals("RemoveFollowerIDs")) RemoveFollowerIDsViewExists = true;
-        if(result.getString(2).equals("UnFollowIDs")) UnFollowIDsExists = true;
+        if(result.getString(2).equals("RemoveFollowIDs")) RemoveFollowIDsExists = true;
       }
       
       if(!TwitterIDsExists) {
@@ -125,7 +125,7 @@ public class InitSqlite {
       }
       if(!RemoveFollowerIDsViewExists) {
         SQL = "create view RemoveFollowerIDs as\n"
-            + "select TwitterIDs.TwitterID,TwitterUserInfo.UserScreenName,TwitterUserInfo.UserName\n"
+            + "select TwitterIDs.TwitterID,TwitterUserInfo.UserScreenName,TwitterUserInfo.UserName, TwitterIDs.UpdateTime\n"
             + "from TwitterIDs\n"
             + "left outer join TwitterFollowIDs on TwitterIDs.TwitterID = TwitterFollowIDs.TwitterID\n"
             + "left outer join TwitterFollowerIDs on TwitterIDs.TwitterID = TwitterFollowerIDs.TwitterID\n"
@@ -135,9 +135,9 @@ public class InitSqlite {
             + "and TwitterFollowIDs.FavoriteFlg = 0";
         statement.execute(SQL);
       }
-      if(!UnFollowIDsExists) {
-        SQL = "create view UnFollowIDs as\n"
-            + "select TwitterIDs.TwitterID, TwitterUserInfo.UserScreenName, TwitterUserInfo.UserName\n"
+      if(!RemoveFollowIDsExists) {
+        SQL = "create view RemoveFollowIDs as\n"
+            + "select TwitterIDs.TwitterID, TwitterUserInfo.UserScreenName, TwitterUserInfo.UserName, TwitterIDs.UpdateTime\n"
             + "from TwitterIDs\n"
             + "left outer join TwitterUserInfo on TwitterIDs.TwitterID = TwitterUserInfo.TwitterID\n"
             + "left outer join TwitterFollowIDs on TwitterIDs.TwitterID = TwitterFollowIDs.TwitterID\n"
