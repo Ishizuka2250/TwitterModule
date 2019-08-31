@@ -13,6 +13,7 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import com.TwitterModule.TwitterModule.FollowState;;
 
 public class SqliteModule {
   private String SqliteDirPath;
@@ -27,14 +28,20 @@ public class SqliteModule {
   }
   
   public enum TwitterIDPattern {
+    /** 全UserID(Follow_ID + Follower_ID)を指定 */
     ALL_ID,
+    /** フォローしたユーザのみ指定 */
     FOLLOW_ID,
+    /** フォローされているユーザのみ指定 */
     FOLLOWER_ID
   }
   
   public enum UserPattern {
+    /** すべてのユーザ(条件指定無し) */
     ALL,
+    /** フォローしている もしくは フォローされているユーザを対象 */
     NO_REMOVE_USER_AND_BANUSER,
+    /** フォローしていない もしくは フォローされていないユーザ, 凍結されているユーザを対象 */
     REMOVE_USER_AND_BANUSER
   }
   
@@ -71,7 +78,7 @@ public class SqliteModule {
   //insertPattern = 0 TwitterIDsテーブルの更新
   //insertPattern = 1 TwitterfollowIDsテーブルの更新
   //insertPattern = 2 TwitterFollowerIDsテーブルの更新
-  public void updateTwitterID(Map<String,String> IDMap, TableName updateTableName) {
+  public void updateTwitterID(Map<String, FollowState> IDMap, TableName updateTableName) {
     String SQL = "";
     String executeType = "";
     long recordCount;
@@ -106,61 +113,61 @@ public class SqliteModule {
         ResultSet result = statement.executeQuery(SQL);
         recordCount = result.getInt(1);
         
-        //TwitterIDs/TwitterFollowIDs/TwitterFollowerIDs : レコード新規追加時(recordCount = 0)
+        //TwitterIDs TwitterFollowIDs TwitterFollowerIDs : レコード新規追加時(recordCount = 0)
         if(recordCount == 0) {
           executeType = "新規追加";
           switch (updateTableName) {
             case TWITTER_IDS:
-              //idの状態が"0"の場合:RemoveFlg = 0, idの状態が"1"の場合:RemoveFlg = 1
-              if(IDMap.get(id).equals("0")) {
+              //NOT_REMOVEの場合:RemoveFlg = 0, REMOVEの場合:RemoveFlg = 1
+              if(IDMap.get(id) == FollowState.NOT_REMOVE) {
                 statement.execute("insert into TwitterIDs values('" + id + "', 0, 0, '" + sdf.format(cal.getTime()) + "', '000000000000', '0', '0', '0')");
-              }else{
+              }else if(IDMap.get(id) == FollowState.REMOVE){
                 statement.execute("insert into TwitterIDs values('" + id + "', 0, 0, '" + sdf.format(cal.getTime()) + "', '000000000000', '0', '1', '0')");
               }break;
             
             case TWITTER_FOLLOW_IDS:
               //idの状態が"0"の場合:NotFollowFlg = 0, idの状態が"1"の場合:NotFollowFlg = 1
-              if(IDMap.get(id).equals("0")) {
+              if(IDMap.get(id) == FollowState.FOLLOW) {
                 statement.execute("insert into TwitterFollowIDs values('" + id + "', '0', '0','" + sdf.format(cal.getTime()) + "');");
-              }else{
+              }else if(IDMap.get(id) == FollowState.NOT_FOLLOW){
                 statement.execute("insert into TwitterFollowIDs values('" + id + "', '1', '0','" + sdf.format(cal.getTime()) + "');");
               }break;
               
             case TWITTER_FOLLOWER_IDS:
               //idの状態が"0"の場合:RemoveFollowFlg = 0, idの状態が"1"の場合:RemoveFollowFlg = 1
-              if(IDMap.get(id).equals("0")) {
+              if(IDMap.get(id) == FollowState.FOLLOWER) {
                 statement.execute("insert into TwitterFollowerIDs values('" + id + "', '0','" + sdf.format(cal.getTime()) + "');");
-              }else{
+              }else if(IDMap.get(id) == FollowState.NOT_FOLLOWER){
                 statement.execute("insert into TwitterFollowerIDs values('" + id + "', '1','" + sdf.format(cal.getTime()) + "');");
               }break;
           }
         }else{
-          //TwitterIDs/TwitterFollowIDs/TwitterFollowerIDs : 既存レコードの更新 (recordCount = 1)
+          //TwitterIDs TwitterFollowIDs TwitterFollowerIDs : 既存レコードの更新 (recordCount = 1)
           executeType = "更新";
           //TwitterIDsテーブルの更新
           switch (updateTableName) {
             case TWITTER_IDS:
-              if(IDMap.get(id).equals("0")) {
+              if(IDMap.get(id) == FollowState.NOT_REMOVE) {
                 statement.execute("update TwitterIDs set RemoveFlg = 0 where TwitterID = '" + id + "';");
-              }else {
+              }else if(IDMap.get(id) == FollowState.REMOVE) {
                 statement.execute("update TwitterIDs set RemoveFlg = 1 where TwitterID = '" + id + "';");
               }
               statement.execute("update TwitterIDs set UpdateTime = '" + sdf.format(cal.getTime()) + "' where TwitterID = '" + id + "';");
               break;
               
             case TWITTER_FOLLOW_IDS:
-              if(IDMap.get(id).equals("0")) {
+              if(IDMap.get(id) == FollowState.FOLLOW) {
                 statement.execute("update TwitterFollowIDs set NotFollowFlg = 0 where TwitterID = '" + id + "';");
-              }else {
+              }else if(IDMap.get(id) == FollowState.NOT_FOLLOW) {
                 statement.execute("update TwitterFollowIDs set NotFollowFlg = 1 where TwitterID = '" + id + "';");
               }
               statement.execute("update TwitterFollowIDs set UpdateTime = '" + sdf.format(cal.getTime()) + "' where TwitterID = '" + id + "';");
               break;
               
             case TWITTER_FOLLOWER_IDS:
-              if(IDMap.get(id).equals("0")) {
+              if(IDMap.get(id) == FollowState.FOLLOWER) {
                 statement.execute("update TwitterFollowerIDs set RemoveFollowerFlg = 0 where TwitterID = '" + id + "';");
-              }else {
+              }else if(IDMap.get(id) == FollowState.NOT_FOLLOWER) {
                 statement.execute("update TwitterFollowerIDs set RemoveFollowerFlg = 1 where TwitterID = '" + id + "';");
               }
               statement.execute("update TwitterFollowerIDs set UpdateTime = '" + sdf.format(cal.getTime()) + "' where TwitterID = '" + id + "';");

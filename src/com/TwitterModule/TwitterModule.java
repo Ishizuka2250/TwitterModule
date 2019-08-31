@@ -1,8 +1,5 @@
 package com.TwitterModule;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.io.PrintWriter;
 import java.util.List;
@@ -11,10 +8,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.HashSet;
-import twitter4j.IDs;
-import twitter4j.Twitter;
 import twitter4j.TwitterException;
-import twitter4j.User;
 import com.TwitterModule.Twitter.TwitterCore;
 import com.TwitterModule.Twitter.TwitterIDSets;
 import com.TwitterModule.Twitter.TwitterUserInfo;
@@ -28,7 +22,22 @@ public class TwitterModule {
   private long TwitterApiStopTimes = (15 * 60 * 1000) + (30 * 1000);// TwitterAPI制限回避→15分
   private StringWriter StackTrace = new StringWriter();
   private PrintWriter pw = new PrintWriter(StackTrace);
-
+  
+  public enum FollowState {
+    /** フォローしている状態 */
+    FOLLOW,
+    /** フォローしていない状態 */
+    NOT_FOLLOW,
+    /** フォローされている状態 */
+    FOLLOWER,
+    /** フォローされていない状態 */
+    NOT_FOLLOWER,
+    /** フォローしておらず, フォローされていない状態 */
+    REMOVE,
+    /** フォローしている もしくは フォローされている状態 または 相互フォロー状態 */
+    NOT_REMOVE
+  }
+  
   public TwitterModule(String UserName) throws ClassNotFoundException {
     TwitterCore = new TwitterCore(UserName);
     Sqlite = new SqliteModule(UserName);
@@ -155,9 +164,9 @@ public class TwitterModule {
     TwitterIDSets nowTwitterIDSets = new TwitterIDSets(TwitterCore.getTwitterInstance());
     TwitterIDSets oldTwitterIDSets = new TwitterIDSets(Sqlite);
     
-    Map<String,String> addFollowIDMap = new HashMap<String,String>();
-    Map<String,String> addFollowerIDMap = new HashMap<String,String>();
-    Map<String, String> addTwitterIDMap = new HashMap<String, String>();
+    Map<String, FollowState> addFollowIDMap = new HashMap<String, FollowState>();
+    Map<String, FollowState> addFollowerIDMap = new HashMap<String, FollowState>();
+    Map<String, FollowState> addTwitterIDMap = new HashMap<String, FollowState>();
     List<String> addTwitterIDList = new ArrayList<String>();
     
     for (String id : nowTwitterIDSets.AllIDSet) {
@@ -165,25 +174,26 @@ public class TwitterModule {
       if(!oldTwitterIDSets.AllIDSet.contains(id)) {
         //0:フォローしている, 1:フォローしていない
         if(nowTwitterIDSets.FollowIDSet.contains(id)) {
-          addFollowIDMap.put(id, "0");
+          addFollowIDMap.put(id, FollowState.FOLLOW);
           follow = true;
         }else{
-          addFollowIDMap.put(id, "1");
+          addFollowIDMap.put(id, FollowState.NOT_FOLLOW);
           follow = false;
         }
         //0:フォローされている, 1:フォローされていない
         if(nowTwitterIDSets.FollowerIDSet.contains(id)){
-          addFollowerIDMap.put(id, "0");
+          addFollowerIDMap.put(id, FollowState.FOLLOWER);
           follower = true;
         }else{
-          addFollowerIDMap.put(id, "1");
+          addFollowerIDMap.put(id, FollowState.NOT_FOLLOWER);
           follower = false;
         }
-        //フォローしていない かつ フォローされていない場合
+        //フォローしておらず, フォローされていない状態
         if((!follow) && (!follower)) {
-          addTwitterIDMap.put(id, "1");
+          addTwitterIDMap.put(id, FollowState.REMOVE);
+        //フォローしている もしくは フォローされている状態 または 相互フォロー状態
         }else{
-          addTwitterIDMap.put(id, "0");
+          addTwitterIDMap.put(id, FollowState.NOT_REMOVE);
         }
       }
     }
@@ -216,36 +226,36 @@ public class TwitterModule {
     TwitterIDSets nowTwitterIDSets = new TwitterIDSets(TwitterCore.getTwitterInstance());
     TwitterIDSets oldTwitterIDSets = new TwitterIDSets(Sqlite);
     
-    Map<String,String> followIDMap = new HashMap<String,String>();
-    Map<String,String> followerIDMap = new HashMap<String,String>();
+    Map<String, FollowState> followIDMap = new HashMap<String, FollowState>();
+    Map<String, FollowState> removeFollowIDMap = new HashMap<String, FollowState>();
+    Map<String, FollowState> followerIDMap = new HashMap<String, FollowState>();
+    Map<String, FollowState> removeFollowerIDMap = new HashMap<String, FollowState>();
+    Map<String, FollowState> removeTwitterIDMap = new HashMap<String, FollowState>();
+    Map<String, FollowState> notRemoveTwitterIDMap = new HashMap<String, FollowState>();
     Set<String> notRemoveTwitterIDSet = new HashSet<String>();
-    Map<String,String> notRemoveTwitterIDMap = new HashMap<String,String>();
-    Map<String,String> removeFollowIDMap = new HashMap<String,String>();
-    Map<String,String> removeFollowerIDMap = new HashMap<String,String>();
     Set<String> removeTwitterIDSet = new HashSet<String>();
-    Map<String,String> removeTwitterIDMap = new HashMap<String,String>();
     
     //過去時点でフォローしているユーザ と 現在フォローしているユーザ を突合 → フォローから外した
     for(String id : oldTwitterIDSets.FollowIDSet) {
-      if(!nowTwitterIDSets.FollowIDSet.contains(id)) removeFollowIDMap.put(id,"1");
+      if(!nowTwitterIDSets.FollowIDSet.contains(id)) removeFollowIDMap.put(id,FollowState.NOT_FOLLOW);
     }
     
     //現在フォローしているユーザ と 過去時点でフォローしているユーザ を突合 → フォローした
     for(String id : nowTwitterIDSets.FollowIDSet) {
-      if(!oldTwitterIDSets.FollowIDSet.contains(id)) followIDMap.put(id,"0");
+      if(!oldTwitterIDSets.FollowIDSet.contains(id)) followIDMap.put(id,FollowState.FOLLOW);
     }
     
     //過去時点でフォローされているユーザ と 現在でフォローされているユーザ を突合 → フォローから外された
     for(String id : oldTwitterIDSets.FollowerIDSet) {
-      if(!nowTwitterIDSets.FollowerIDSet.contains(id)) removeFollowerIDMap.put(id,"1");
+      if(!nowTwitterIDSets.FollowerIDSet.contains(id)) removeFollowerIDMap.put(id,FollowState.NOT_FOLLOWER);
     }
     
     //現在フォローされているユーザ と 過去時点でフォローされているユーザを突合 → フォローされた
     for(String id : nowTwitterIDSets.FollowerIDSet) {
-      if(!oldTwitterIDSets.FollowerIDSet.contains(id)) followerIDMap.put(id,"0");
+      if(!oldTwitterIDSets.FollowerIDSet.contains(id)) followerIDMap.put(id,FollowState.FOLLOWER);
     }
     
-    //リムーブ・リフォローされたユーザーに対しSqlite内のNotFollow/RemoveFollowerをチェックしてどちらも1であればTwitterIDsのRemoveFlg=1にセットする
+    //フォローしていない & フォローされていない状態 のユーザを探す.
     for(String id : removeFollowIDMap.keySet()) {
       if((removeFollowerIDMap.get(id) != null) || (oldTwitterIDSets.RemoveFollowerIDSet.contains(id))) {
         removeTwitterIDSet.add(id);
@@ -256,26 +266,26 @@ public class TwitterModule {
         removeTwitterIDSet.add(id);
       }
     }
-    removeTwitterIDSet.forEach((v) -> {removeTwitterIDMap.put(v, "1");});
+    removeTwitterIDSet.forEach((v) -> {removeTwitterIDMap.put(v, FollowState.REMOVE);});
     
-    
+    //フォローした もしくは フォローされた ユーザを探す.
     for(String id : followIDMap.keySet()) {
       notRemoveTwitterIDSet.add(id);
     }
     for(String id : followerIDMap.keySet()) {
       notRemoveTwitterIDSet.add(id);
     }
-    notRemoveTwitterIDSet.forEach((v) -> {notRemoveTwitterIDMap.put(v, "0");});
+    notRemoveTwitterIDSet.forEach((v) -> {notRemoveTwitterIDMap.put(v, FollowState.NOT_REMOVE);});
     
     //Sqliteを更新
     if(removeFollowIDMap.size() != 0) {
       Sqlite.updateTwitterID(removeFollowIDMap, TableName.TWITTER_FOLLOW_IDS);
-      System.out.println("Info:フォローを外したユーザ");
+      System.out.println("Info:フォローを外したユーザ(凍結されたユーザも含む)");
       removeFollowIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
     if(removeFollowerIDMap.size() != 0) {
       Sqlite.updateTwitterID(removeFollowerIDMap, TableName.TWITTER_FOLLOWER_IDS);
-      System.out.println("Info:フォローを外されたユーザ");
+      System.out.println("Info:フォローを外されたユーザ(凍結されたユーザも含む)");
       removeFollowerIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
     if(removeTwitterIDMap.size() != 0) {
