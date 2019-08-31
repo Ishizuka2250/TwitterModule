@@ -1,4 +1,4 @@
-package com.TwitterModule;
+package com.TwitterModule.Sqlite;
 
 import java.io.File;
 import java.io.StringWriter;

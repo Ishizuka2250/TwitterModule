@@ -4,12 +4,14 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
 import twitter4j.IDs;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
-import com.TwitterModule.SqliteIO;
-import com.TwitterModule.SqliteIO.TwitterIDPattern;
-import com.TwitterModule.SqliteIO.UserPattern;
+
+import com.TwitterModule.Sqlite.SqliteIO;
+import com.TwitterModule.Sqlite.SqliteIO.TwitterIDPattern;
+import com.TwitterModule.Sqlite.SqliteIO.UserPattern;
 
 public class TwitterIDSets {
   private Twitter twitter;

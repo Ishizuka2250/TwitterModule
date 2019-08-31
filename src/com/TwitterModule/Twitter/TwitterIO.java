@@ -11,10 +11,10 @@ import java.util.HashSet;
 
 import twitter4j.TwitterException;
 
-import com.TwitterModule.SqliteIO;
-import com.TwitterModule.SqliteIO.TwitterIDPattern;
-import com.TwitterModule.SqliteIO.UserPattern;
-import com.TwitterModule.SqliteIO.TableName;
+import com.TwitterModule.Sqlite.SqliteIO;
+import com.TwitterModule.Sqlite.SqliteIO.TableName;
+import com.TwitterModule.Sqlite.SqliteIO.TwitterIDPattern;
+import com.TwitterModule.Sqlite.SqliteIO.UserPattern;
 
 public class TwitterIO {
   private SqliteIO Sqlite;
