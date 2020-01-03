@@ -57,6 +57,7 @@ public class APIKey {
   public APIKey(String APIKeyXmlPath) {
     try {
       XMLPath = APIKeyXmlPath;
+      if ((new File(XMLPath).exists()) == false) APIKeyError("Error:APIKeyファイルの参照に失敗しました.");
       String tempFilePath = deleteIndentXML();
       File tempFile = new File(tempFilePath);
       DocumentBuilderFactory documentBuilderfactory = DocumentBuilderFactory.newInstance();

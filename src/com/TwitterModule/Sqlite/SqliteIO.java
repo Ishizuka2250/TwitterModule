@@ -1,5 +1,6 @@
 package com.TwitterModule.Sqlite;
 
+import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.sql.Connection;
@@ -17,17 +18,18 @@ import java.util.Properties;
 import com.TwitterModule.Twitter.TwitterIO.FollowState;
 
 public class SqliteIO {
-  private String SqliteDirPath;
   private String SqlitePath;
   private StringWriter StackTrace = new StringWriter();
   private PrintWriter pw = new PrintWriter(StackTrace);
   
+  /** データ格納先のテーブル名 */
   public enum TableName {
     TWITTER_IDS,
     TWITTER_FOLLOW_IDS,
     TWITTER_FOLLOWER_IDS
   }
   
+  /** フォロー・フォロワーのパターン指定 */
   public enum TwitterIDPattern {
     /** 全UserID(Follow_ID + Follower_ID)を指定 */
     ALL_ID,
@@ -37,6 +39,7 @@ public class SqliteIO {
     FOLLOWER_ID
   }
   
+  /** フォロー有無・凍結ユーザの指定 */
   public enum UserPattern {
     /** すべてのユーザ(条件指定無し) */
     ALL,
@@ -46,10 +49,14 @@ public class SqliteIO {
     REMOVE_USER_AND_BANUSER
   }
   
+  /** コンストラクタ
+   * @param UserName ユーザ名(UserScreenName)
+   */
   public SqliteIO(String UserName) throws ClassNotFoundException {
+    String cd = new File(".").getAbsoluteFile().getParent();
     Class.forName("org.sqlite.JDBC");
-    SqliteDirPath = "D:/twitterApp";
-    SqlitePath = SqliteDirPath +  "/" + UserName + ".sqlite";
+    //SqlitePath = SqliteDirPath +  "\\" + UserName + ".sqlite";
+    SqlitePath = cd + "\\" + UserName + ".sqlite";
     InitSqlite initSqlite = new InitSqlite(UserName,SqlitePath);
     initSqlite.tableCheck();
   }
@@ -79,6 +86,12 @@ public class SqliteIO {
   //insertPattern = 0 TwitterIDsテーブルの更新
   //insertPattern = 1 TwitterfollowIDsテーブルの更新
   //insertPattern = 2 TwitterFollowerIDsテーブルの更新
+  /**
+   * レコード更新処理.<br>
+   * 指定されたテーブルのフォロー状態を更新する. 
+   * @param IDMap 更新対象のID, フォロー状態のMap
+   * @param updateTableName 更新対象テーブル名
+   */
   public void updateTwitterID(Map<String, FollowState> IDMap, TableName updateTableName) {
     String SQL = "";
     String executeType = "";
@@ -187,6 +200,10 @@ public class SqliteIO {
     }
   }
   
+  /**
+   * ユーザ情報を更新するためのフラグをOnにする.
+   * @param IDList ユーザ情報更新対象ID
+   */
   public void updateFlgsOn(List<String> IDList) {
     String SQL = "";
     try {
@@ -207,7 +224,11 @@ public class SqliteIO {
     }
   }
   
-  public List<String> getUpdateUserIDList(int UpdateFlg) {
+  /**
+   * ユーザ情報更新対象のIDを取得する.
+   * @return 更新対象IDのリスト
+   */
+  public List<String> getUpdateUserIDList() {
     List<String> TwitterIDList = new ArrayList<String>();
     String SQL = "";
     try{
@@ -215,17 +236,25 @@ public class SqliteIO {
       Statement statement = connection.createStatement();
       statement.setQueryTimeout(30);
       SQL = "select TwitterID from TwitterIDs\n"
-          + "where UpdateFlg = '" + UpdateFlg + "'";
+          + "where UpdateFlg = '1'";
       ResultSet result = statement.executeQuery(SQL);
       while(result.next()) {
         TwitterIDList.add(result.getString(1));
       }
+      statement.close();
+      connection.close();
     }catch (SQLException e) {
       outputSQLStackTrace(e,SQL);
     }
     return TwitterIDList;
   }
   
+  /**
+   * ユーザ情報の更新.<br>
+   * 古いレコードが存在する場合は削除して新しいレコードを追加する.
+   * @param UserIDMap 
+   * @return
+   */
   public boolean updateUserInfo(Map<String, String> UserIDMap) {
     Calendar cal = Calendar.getInstance();
     SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");

@@ -1,5 +1,6 @@
 package com.TwitterModule.Twitter;
 
+import java.io.File;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
@@ -11,7 +12,7 @@ import twitter4j.conf.ConfigurationBuilder;
 import twitter4j.TwitterException;
 
 public class TwitterCore {
-  private String APIKeyXMLPath = "D:/twitterApp/APIKey.xml";
+  private String APIKeyXMLPath;
   private APIKey Key;
   private String ConsumerKey;
   private String ConsumerSecret;
@@ -19,6 +20,8 @@ public class TwitterCore {
   private String AccessTokenSecret;
   
   public TwitterCore(String UserName) {
+    String cd = new File(".").getAbsoluteFile().getParent();
+    APIKeyXMLPath = cd + "\\APIKey.xml";
     Key = new APIKey(APIKeyXMLPath);
     ConsumerKey = Key.getConsumerKey();
     ConsumerSecret = Key.getConsumerSecret();

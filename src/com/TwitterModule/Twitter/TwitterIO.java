@@ -66,7 +66,7 @@ public class TwitterIO {
    * TwitterIDs.UpdateFlg = 1 のユーザー情報を更新
    */
   public void twitterUserInfoUpdate() throws TwitterException {
-    List<String> updateIDList = Sqlite.getUpdateUserIDList(1);
+    List<String> updateIDList = Sqlite.getUpdateUserIDList();
 
     // uploadFlg=1のものを処理
     while (updateIDList.size() != 0) {
@@ -81,7 +81,7 @@ public class TwitterIO {
           pw.flush();
           System.out.println("InterruptedException:\n" + StackTrace.toString());
         }
-        updateIDList = Sqlite.getUpdateUserIDList(1);
+        updateIDList = Sqlite.getUpdateUserIDList();
       }
     }
   }
