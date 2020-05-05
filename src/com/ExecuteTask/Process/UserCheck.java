@@ -11,9 +11,8 @@ public class UserCheck implements Process {
   @Override
   public void execute() {
     try{
-      long start, end;
-      start = System.currentTimeMillis();
-      
+      //long start, end;
+      //start = System.currentTimeMillis();
       TwitterIO twitter = new TwitterIO(UserName);
       
       //新規追加ユーザーのチェック
@@ -21,8 +20,9 @@ public class UserCheck implements Process {
       //フォロー・リフォローのチェック
       twitter.twitterUpdateUserIDCheck();
       
-      end = System.currentTimeMillis();
-      System.out.println("Info:更新が完了しました(" + (end - start) + "ms" + ").");
+      //end = System.currentTimeMillis();
+      //System.out.println("Info:更新が完了しました(" + (end - start) + "ms" + ").");
+      //System.out.println("execute -> twitterAddUserIDCheck()");
     }catch (Exception e) {
       System.out.println(e.toString());
     }

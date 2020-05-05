@@ -11,7 +11,7 @@ public class ArgsError implements Process{
 
   @Override
   public void execute(){
-    System.out.println("error:" + ErrorMessage);
+    System.out.println("Error:" + ErrorMessage);
     Help.execute();
   }
 }

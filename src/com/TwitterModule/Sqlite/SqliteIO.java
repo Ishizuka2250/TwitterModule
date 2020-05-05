@@ -43,9 +43,9 @@ public class SqliteIO {
   public enum UserPattern {
     /** すべてのユーザ(条件指定無し) */
     ALL,
-    /** フォローしている もしくは フォローされているユーザを対象 */
+    /** 片思い・相互フォローユーザを対象 */
     NO_REMOVE_USER_AND_BANUSER,
-    /** フォローしていない もしくは フォローされていないユーザ, 凍結されているユーザを対象 */
+    /** 絶縁状態・凍結されているユーザを対象 */
     REMOVE_USER_AND_BANUSER
   }
   

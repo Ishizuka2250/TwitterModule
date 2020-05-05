@@ -44,7 +44,8 @@ public class TwitterIO {
     /** フォローしている もしくは フォローされているユーザを対象 */
     UPDATE_NO_REMOVE_USER_AND_BANUSER,
     /** フォローしていない もしくは フォローされていないユーザ, 凍結されているユーザを対象 */
-    UPDATE_BANUSER
+    UPDATE_BANUSER,
+    UPDATE_NO_OPTION
   }
   
   public TwitterIO(String UserName) throws ClassNotFoundException {
