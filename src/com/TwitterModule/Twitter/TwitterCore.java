@@ -11,6 +11,12 @@ import twitter4j.auth.AccessToken;
 import twitter4j.conf.ConfigurationBuilder;
 import twitter4j.TwitterException;
 
+/**
+ * API操作インスタンス生成クラス<br>
+ * APIKey.xml に該当するユーザーのTwitterAPI操作インスタンスを生成する.<br>
+ * @author ishizuka
+ *
+ */
 public class TwitterCore {
   private String APIKeyXMLPath;
   private APIKey Key;
@@ -19,6 +25,11 @@ public class TwitterCore {
   private String AccessToken;
   private String AccessTokenSecret;
   
+  /**
+   * APIインスタンス生成クラス：コンストラクタ<br>
+   * APIKey.xmlに登録されているユーザ名に紐づく AccessToken, AccessTokenSecret を読み込む <br>
+   * @param UserName APIKey.xml に登録されているユーザ名
+   */
   public TwitterCore(String UserName) {
     String cd = new File(".").getAbsoluteFile().getParent();
     APIKeyXMLPath = cd + "\\APIKey.xml";
@@ -33,7 +44,11 @@ public class TwitterCore {
       System.exit(0);
     }
   }
- 
+  
+  /**
+   * APIKey.xmlから読み込んだ各キー情報をビルダーにセットする.<br>
+   * @return Twitter4j.conf.ConfigurationBuilder
+   */
   private ConfigurationBuilder twitterConfigure() {
     ConfigurationBuilder confbuilder = new ConfigurationBuilder();
     confbuilder.setDebugEnabled(true);
@@ -44,11 +59,19 @@ public class TwitterCore {
     return confbuilder;
   }
   
+  /**
+   * APIKey.xml に登録されているユーザのTwitterAPIインスタンスを返す.<br>
+   * @return TwitterAPI操作インスタンス
+   */
   public Twitter getTwitterInstance() {
     TwitterFactory twitterFactory = new TwitterFactory(twitterConfigure().build());
     return twitterFactory.getInstance();
   }
-
+  
+  /**
+   * APIKey.xml へ未登録の場合に呼び出されるユーザ登録ウィザード.<br>
+   * @param UserName APIKey.xml へ登録するユーザ名
+   */
   private void twitterOAuthWizard(String UserName) {
     try {
       Twitter twitter = new TwitterFactory().getInstance();

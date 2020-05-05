@@ -145,19 +145,6 @@ public class TwitterIO {
     }
   }
 
-  /*public static void twitterRemoveUser(List<String> TwitterUserSet) {
-    TwitterFactory twitterFactory = new TwitterFactory(twitterConfigure().build());
-    Twitter twitter = twitterFactory.getInstance();
-    try{
-      for(String id : TwitterUserSet) {
-        twitter.destroyFriendship();
-      }
-    }catch(TwitterException e) {
-      
-    }
-    
-  }*/
-  
   public void twitterAddUserIDCheck() throws TwitterException {
     Boolean follow,follower;
     
