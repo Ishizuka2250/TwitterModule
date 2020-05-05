@@ -38,6 +38,15 @@ public class TwitterIO {
     NOT_REMOVE
   }
   
+  public enum UpdatePattern {
+    /** すべてのユーザ(条件指定無し) */
+    UPDATE_ALL,
+    /** フォローしている もしくは フォローされているユーザを対象 */
+    UPDATE_NO_REMOVE_USER_AND_BANUSER,
+    /** フォローしていない もしくは フォローされていないユーザ, 凍結されているユーザを対象 */
+    UPDATE_BANUSER
+  }
+  
   public TwitterIO(String UserName) throws ClassNotFoundException {
     TwitterCore = new TwitterCore(UserName);
     Sqlite = new SqliteIO(UserName);
@@ -49,23 +58,23 @@ public class TwitterIO {
    * FilterPattern = 1:TwitterIDsに登録されているユーザーを更新 (フォロー・フォロワーでもない他人ユーザー かつ アカウントが凍結されているユーザーを除く)
    * FilterPattern = 2:TwitterIDsに登録されているアカウントが凍結されているユーザーを更新
    * */
-  public void selectUserInfoUpdate(int FilterPattern) throws TwitterException {
+  public void selectUserInfoUpdate(UpdatePattern pattern) throws TwitterException {
     List<String> IDList = new ArrayList<String>();
-    if(FilterPattern == 0) IDList = Sqlite.getTwitterIDList(TwitterIDPattern.ALL_ID,UserPattern.ALL);
-    else if(FilterPattern == 1) IDList = Sqlite.getTwitterIDList(TwitterIDPattern.ALL_ID,UserPattern.NO_REMOVE_USER_AND_BANUSER);
-    else if(FilterPattern == 2) IDList = Sqlite.getTwitterIDBan();
-    else {
-      System.out.println("Error:無効なフィルターパターンが検知されました.");
-      System.exit(1);
+    if(pattern == UpdatePattern.UPDATE_ALL) {
+      IDList = Sqlite.getTwitterIDList(TwitterIDPattern.ALL_ID,UserPattern.ALL);
+    }else if(pattern == UpdatePattern.UPDATE_NO_REMOVE_USER_AND_BANUSER){
+      IDList = Sqlite.getTwitterIDList(TwitterIDPattern.ALL_ID,UserPattern.NO_REMOVE_USER_AND_BANUSER);
+    }else if(pattern == UpdatePattern.UPDATE_BANUSER){
+      IDList = Sqlite.getTwitterIDBan();
     }
     Sqlite.updateFlgsOn(IDList);
-    twitterUserInfoUpdate();
+    userInfoUpdate();
   }
   
   /*
    * TwitterIDs.UpdateFlg = 1 のユーザー情報を更新
    */
-  public void twitterUserInfoUpdate() throws TwitterException {
+  private void userInfoUpdate() throws TwitterException {
     List<String> updateIDList = Sqlite.getUpdateUserIDList();
 
     // uploadFlg=1のものを処理
@@ -202,7 +211,7 @@ public class TwitterIO {
       Sqlite.updateTwitterID(addTwitterIDMap, TableName.TWITTER_IDS);
       System.out.println("Info:TwitterIDs update -- " + addTwitterIDMap.size() + "件　追加");
       Sqlite.updateFlgsOn(addTwitterIDList);
-      twitterUserInfoUpdate();
+      userInfoUpdate();
     }
     
     if ((addFollowIDMap.size() == 0) && (addFollowerIDMap.size() == 0)
