@@ -1,7 +1,7 @@
 package com.ExecuteTask.Process;
 import com.ExecuteTask.Process.HelpMessage;
 
-public class ArgsError implements Process{
+public class ArgsError implements IProcess{
   private String ErrorMessage;
   private HelpMessage Help;
   public ArgsError(String ErrorMsg) {

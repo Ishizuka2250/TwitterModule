@@ -2,7 +2,7 @@ package com.ExecuteTask.Process;
 import com.TwitterModule.Twitter.TwitterIO.UpdatePattern;
 import com.TwitterModule.Twitter.TwitterIO;
 
-public class UpdateUserInfo implements Process{
+public class UpdateUserInfo implements IProcess{
   private UpdatePattern UpPattern;
   private String UserName;
   

@@ -8,15 +8,15 @@ import java.util.HashSet;
 
 import com.ExecuteTask.Process.ArgsError;
 import com.ExecuteTask.Process.HelpMessage;
-import com.ExecuteTask.Process.Process;
+import com.ExecuteTask.Process.IProcess;
 import com.ExecuteTask.Process.UpdateUserInfo;
 import com.ExecuteTask.Process.UserCheck;
 import com.TwitterModule.Twitter.TwitterIO.UpdatePattern;
 
 public class CreateTask {
-  private Map<String,Process> ProcessMap;
+  private Map<String,IProcess> ProcessMap;
   private Set<String> ExecuteOptionSet;
-  private List<Process> ExecuteProcessList;
+  private List<IProcess> ExecuteProcessList;
   private String OptionCharacters;
   private String SkipCharacters;
   
@@ -24,7 +24,7 @@ public class CreateTask {
     String userName;
     List<String> optionList = new ArrayList<String>();
     List<String> valueList = new ArrayList<String>();
-    ExecuteProcessList = new ArrayList<Process>();
+    ExecuteProcessList = new ArrayList<IProcess>();
     ExecuteOptionSet = new HashSet<String>();
     
     if(args.length < 2) {
@@ -107,11 +107,11 @@ public class CreateTask {
   }
   
   public void execute() {
-    for(Process p : ExecuteProcessList) p.execute();
+    for(IProcess p : ExecuteProcessList) p.execute();
   }
 
   private void initProcess(List<String> OptionList,String UserName) {
-    ProcessMap = new HashMap<String, Process>();
+    ProcessMap = new HashMap<String, IProcess>();
     ProcessMap.put("c", new UserCheck(UserName));
     ProcessMap.put("u", new UpdateUserInfo(UserName, getUpdatePattern(OptionList)));
   }

@@ -2,7 +2,7 @@ package com.ExecuteTask.Process;
 
 import com.TwitterModule.Twitter.TwitterIO;
 
-public class UserCheck implements Process {
+public class UserCheck implements IProcess {
   private String UserName;
   public UserCheck(String userName){
     this.UserName = userName;

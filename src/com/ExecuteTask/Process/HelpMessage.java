@@ -1,6 +1,6 @@
 package com.ExecuteTask.Process;
 
-public class HelpMessage implements Process{
+public class HelpMessage implements IProcess{
   private HelpMessageType type;
   public enum HelpMessageType {
     SHORT,FULL;
