@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -92,12 +93,10 @@ public class SqliteIO {
    * @param IDMap 更新対象のID, フォロー状態のMap
    * @param updateTableName 更新対象テーブル名
    */
-  public void updateTwitterID(Map<String, FollowState> IDMap, TableName updateTableName) {
+  public void updateTwitterID(Map<String, FollowState> IDMap, TableName updateTableName, String UpdateTime) {
     String SQL = "";
     String executeType = "";
     long recordCount;
-    Calendar cal = Calendar.getInstance();
-    SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
     
     try {
       Connection connection = DriverManager.getConnection("jdbc:sqlite:" + SqlitePath, getProperties());
@@ -134,25 +133,25 @@ public class SqliteIO {
             case TWITTER_IDS:
               //NOT_REMOVEの場合:RemoveFlg = 0, REMOVEの場合:RemoveFlg = 1
               if(IDMap.get(id) == FollowState.NOT_REMOVE) {
-                statement.execute("insert into TwitterIDs values('" + id + "', 0, 0, '" + sdf.format(cal.getTime()) + "', '000000000000', '0', '0', '0')");
+                statement.execute("insert into TwitterIDs values('" + id + "', 0, 0, '" + UpdateTime + "', '000000000000', '0', '0', '0')");
               }else if(IDMap.get(id) == FollowState.REMOVE){
-                statement.execute("insert into TwitterIDs values('" + id + "', 0, 0, '" + sdf.format(cal.getTime()) + "', '000000000000', '0', '1', '0')");
+                statement.execute("insert into TwitterIDs values('" + id + "', 0, 0, '" + UpdateTime + "', '000000000000', '0', '1', '0')");
               }break;
             
             case TWITTER_FOLLOW_IDS:
               //idの状態が"0"の場合:NotFollowFlg = 0, idの状態が"1"の場合:NotFollowFlg = 1
               if(IDMap.get(id) == FollowState.FOLLOW) {
-                statement.execute("insert into TwitterFollowIDs values('" + id + "', '0', '0','" + sdf.format(cal.getTime()) + "');");
+                statement.execute("insert into TwitterFollowIDs values('" + id + "', '0', '0','" + UpdateTime + "');");
               }else if(IDMap.get(id) == FollowState.NOT_FOLLOW){
-                statement.execute("insert into TwitterFollowIDs values('" + id + "', '1', '0','" + sdf.format(cal.getTime()) + "');");
+                statement.execute("insert into TwitterFollowIDs values('" + id + "', '1', '0','" + UpdateTime + "');");
               }break;
               
             case TWITTER_FOLLOWER_IDS:
               //idの状態が"0"の場合:RemoveFollowFlg = 0, idの状態が"1"の場合:RemoveFollowFlg = 1
               if(IDMap.get(id) == FollowState.FOLLOWER) {
-                statement.execute("insert into TwitterFollowerIDs values('" + id + "', '0','" + sdf.format(cal.getTime()) + "');");
+                statement.execute("insert into TwitterFollowerIDs values('" + id + "', '0','" + UpdateTime + "');");
               }else if(IDMap.get(id) == FollowState.NOT_FOLLOWER){
-                statement.execute("insert into TwitterFollowerIDs values('" + id + "', '1','" + sdf.format(cal.getTime()) + "');");
+                statement.execute("insert into TwitterFollowerIDs values('" + id + "', '1','" + UpdateTime + "');");
               }break;
           }
         }else{
@@ -166,25 +165,29 @@ public class SqliteIO {
               }else if(IDMap.get(id) == FollowState.REMOVE) {
                 statement.execute("update TwitterIDs set RemoveFlg = 1 where TwitterID = '" + id + "';");
               }
-              statement.execute("update TwitterIDs set UpdateTime = '" + sdf.format(cal.getTime()) + "' where TwitterID = '" + id + "';");
+              statement.execute("update TwitterIDs set UpdateTime = '" + UpdateTime + "' where TwitterID = '" + id + "';");
               break;
               
+            //TwitterFollowIDs更新 → TwitterIDs の UpdateTime も同時に更新
             case TWITTER_FOLLOW_IDS:
               if(IDMap.get(id) == FollowState.FOLLOW) {
                 statement.execute("update TwitterFollowIDs set NotFollowFlg = 0 where TwitterID = '" + id + "';");
               }else if(IDMap.get(id) == FollowState.NOT_FOLLOW) {
                 statement.execute("update TwitterFollowIDs set NotFollowFlg = 1 where TwitterID = '" + id + "';");
               }
-              statement.execute("update TwitterFollowIDs set UpdateTime = '" + sdf.format(cal.getTime()) + "' where TwitterID = '" + id + "';");
+              statement.execute("update TwitterFollowIDs set UpdateTime = '" + UpdateTime + "' where TwitterID = '" + id + "';");
+              statement.execute("update TwitterIDs set UpdateTime = '" + UpdateTime + "' where TwitterID = '" + id + "';");
               break;
               
+            //TwitterFollowerIDs更新 → TwitterIDs の UpdateTime も同時に更新
             case TWITTER_FOLLOWER_IDS:
               if(IDMap.get(id) == FollowState.FOLLOWER) {
                 statement.execute("update TwitterFollowerIDs set RemoveFollowerFlg = 0 where TwitterID = '" + id + "';");
               }else if(IDMap.get(id) == FollowState.NOT_FOLLOWER) {
                 statement.execute("update TwitterFollowerIDs set RemoveFollowerFlg = 1 where TwitterID = '" + id + "';");
               }
-              statement.execute("update TwitterFollowerIDs set UpdateTime = '" + sdf.format(cal.getTime()) + "' where TwitterID = '" + id + "';");
+              statement.execute("update TwitterFollowerIDs set UpdateTime = '" + UpdateTime + "' where TwitterID = '" + id + "';");
+              statement.execute("update TwitterIDs set UpdateTime = '" + UpdateTime + "' where TwitterID = '" + id + "';");
               break;
           }
         }
@@ -211,9 +214,9 @@ public class SqliteIO {
       Statement statement = connection.createStatement();
       statement.setQueryTimeout(30);
       statement.execute("begin transaction");
-      for(String temp : IDList) {
+      for(String id : IDList) {
         SQL = "update TwitterIDs set UpdateFlg = '1'\n"
-            + "where TwitterID = '" + temp + "'";
+            + "where TwitterID = '" + id + "'";
         statement.execute(SQL);
       }
       statement.execute("commit");
@@ -267,52 +270,52 @@ public class SqliteIO {
       int updateUserInfoTimes;
       statement.setQueryTimeout(30);
       statement.execute("begin transaction");
-      for(String temp : UserIDMap.keySet()) {
+      for(String id : UserIDMap.keySet()) {
         SQL = "select count(*) from TwitterUserInfo\n"
-            + "where TwitterID = '" + temp + "'";
+            + "where TwitterID = '" + id + "'";
         result = statement.executeQuery(SQL);
         result.next();
         if(result.getInt(1) == 0) {
           //TwitterUserInfo新規登録時
-          //アカBANされているUserIDかどうかの判定[UserIDMap.get(temp) = "1" → アカBan] 
-          if(UserIDMap.get(temp).equals("1") == false) {//ユーザー情報正常取得時(NotアカBAN)
-            SQL = "insert into TwitterUserInfo values(" + UserIDMap.get(temp) + ");";
+          //アカBANされているUserIDかどうかの判定[UserIDMap.get(id) = "1" → アカBan] 
+          if(UserIDMap.get(id).equals("1") == false) {//ユーザー情報正常取得時(NotアカBAN)
+            SQL = "insert into TwitterUserInfo values(" + UserIDMap.get(id) + ");";
             statement.execute(SQL);
             SQL = "update TwitterIDs set UpdateUserInfoTimes = 1,UpdateTime = " + sdf.format(cal.getTime()) + ",  UpdateFlg = '0', BanUserFlg = '0'\n"
-                + "where TwitterID = '" + temp + "'";
+                + "where TwitterID = '" + id + "'";
           }else{//アカBan
             //TwitterIDsより更新回数を取得
             SQL = "select * from TwitterIDs\n"
-                + "where TwitterID = '" + temp + "'";
+                + "where TwitterID = '" + id + "'";
             banCountResult = statement.executeQuery(SQL);
             banCountResult.next();
             updateUserInfoTimes = banCountResult.getInt(2);
             SQL = "update TwitterIDs set UpdateUserInfoTimes = " + (updateUserInfoTimes + 1) + ",UpdateTime = " + sdf.format(cal.getTime()) + ",  UpdateFlg = '0', BanUserFlg = '1'\n"
-                + "where TwitterID = '" + temp + "'";
+                + "where TwitterID = '" + id + "'";
           }
           statement.execute(SQL);
         }else{//ユーザー情報登録済み (既存レコードの物理削除 → 更新レコード挿入)
           //過去データの物理削除
           SQL = "delete from TwitterUserInfo\n"
-              + "where TwitterID = '" + temp + "'";
+              + "where TwitterID = '" + id + "'";
           statement.execute(SQL);
           //TwitterIDsより更新回数を取得
           SQL = "select * from TwitterIDs\n"
-              + "where TwitterID = '" + temp + "'";
+              + "where TwitterID = '" + id + "'";
           result = statement.executeQuery(SQL);
           result.next();
           updateUserInfoTimes = result.getInt(2);
-          //アカBANされているユーザかどうか判定. [UserIDMap.get(temp) = "1" → アカBanされているユーザ]
-          if(UserIDMap.get(temp).equals("1") == false) {//ユーザー情報正常取得時
+          //アカBANされているユーザかどうか判定. [UserIDMap.get(id) = "1" → アカBanされているユーザ]
+          if(UserIDMap.get(id).equals("1") == false) {//ユーザー情報正常取得時
             //User情報更新
-            SQL = "insert into TwitterUserInfo values(" + UserIDMap.get(temp) + ");";
+            SQL = "insert into TwitterUserInfo values(" + UserIDMap.get(id) + ");";
             statement.execute(SQL);
             
-            SQL = "update TwitterIDs set UpdateUserInfoTimes = " + (updateUserInfoTimes + 1) + ",UpdateTime = " + sdf.format(cal.getTime()) + ",  UpdateFlg = '0'\n"
-                + "where TwitterID = '" + temp + "'";
+            SQL = "update TwitterIDs set UpdateUserInfoTimes = " + (updateUserInfoTimes + 1) + ",  UpdateFlg = '0'\n" 
+                + "where TwitterID = '" + id + "'";
           }else{//アカBan
-            SQL = "update TwitterIDs set UpdateUserInfoTimes = " + (updateUserInfoTimes + 1) + ",UpdateTime = " + sdf.format(cal.getTime()) + ",  UpdateFlg = '0', BanUserFlg = '1'\n"
-                + "where TwitterID = '" + temp + "'";
+            SQL = "update TwitterIDs set UpdateUserInfoTimes = " + (updateUserInfoTimes + 1) + ",  UpdateFlg = '0', BanUserFlg = '1'\n"
+                + "where TwitterID = '" + id + "'";
           }
           statement.execute(SQL);
           result.close();

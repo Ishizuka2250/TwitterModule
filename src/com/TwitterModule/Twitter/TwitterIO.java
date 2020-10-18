@@ -2,6 +2,9 @@ package com.TwitterModule.Twitter;
 
 import java.io.StringWriter;
 import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
@@ -157,6 +160,8 @@ public class TwitterIO {
 
   public void twitterAddUserIDCheck() throws TwitterException {
     Boolean follow,follower;
+    Date now = Calendar.getInstance().getTime();
+    SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
     
     TwitterIDSets nowTwitterIDSets = new TwitterIDSets(TwitterCore.getTwitterInstance());
     TwitterIDSets oldTwitterIDSets = new TwitterIDSets(Sqlite);
@@ -196,20 +201,23 @@ public class TwitterIO {
     }
     addTwitterIDMap.forEach((k,v) -> {addTwitterIDList.add(k);});
 
-    //Twitterで取得した各ID情報をDB(Sqlite)へ保存
+    //TwitterFollowIDs を更新
     if (addFollowIDMap.size() != 0) {
-      Sqlite.updateTwitterID(addFollowIDMap, TableName.TWITTER_FOLLOW_IDS);
+      Sqlite.updateTwitterID(addFollowIDMap, TableName.TWITTER_FOLLOW_IDS, sdf.format(now));
       System.out.println("Info:TwitterFollowIDs -- " + addFollowIDMap.size() + "件 追加");
       //addFollowIDMap.forEach((k,v) -> {System.out.println("  " + k + ":" + v);});
     }
+    
+    //TwitterFollowerIds を更新
     if (addFollowerIDMap.size() != 0) {
-      Sqlite.updateTwitterID(addFollowerIDMap, TableName.TWITTER_FOLLOWER_IDS);
+      Sqlite.updateTwitterID(addFollowerIDMap, TableName.TWITTER_FOLLOWER_IDS, sdf.format(now));
       System.out.println("Info:TwitterFollowerIDs -- " + addFollowerIDMap.size() + "件 追加");
       //addFollowerIDMap.forEach((k,v) -> {System.out.println("  " + k + ":" + v);});
     }
-      
+    
+    //TwitterIDs, TwitterUserInfo の更新
     if (addTwitterIDMap.size() != 0) {
-      Sqlite.updateTwitterID(addTwitterIDMap, TableName.TWITTER_IDS);
+      Sqlite.updateTwitterID(addTwitterIDMap, TableName.TWITTER_IDS, sdf.format(now));
       System.out.println("Info:TwitterIDs update -- " + addTwitterIDMap.size() + "件　追加");
       Sqlite.updateFlgsOn(addTwitterIDList);
       userInfoUpdate();
@@ -222,6 +230,9 @@ public class TwitterIO {
   public void twitterUpdateUserIDCheck() throws TwitterException {
     TwitterIDSets nowTwitterIDSets = new TwitterIDSets(TwitterCore.getTwitterInstance());
     TwitterIDSets oldTwitterIDSets = new TwitterIDSets(Sqlite);
+
+    Date now = Calendar.getInstance().getTime();
+    SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
     
     Map<String, FollowState> followIDMap = new HashMap<String, FollowState>();
     Map<String, FollowState> removeFollowIDMap = new HashMap<String, FollowState>();
@@ -274,35 +285,37 @@ public class TwitterIO {
     }
     notRemoveTwitterIDSet.forEach((v) -> {notRemoveTwitterIDMap.put(v, FollowState.NOT_REMOVE);});
     
-    //Sqliteを更新
+    //TwitterFollowIDs を更新
     if(removeFollowIDMap.size() != 0) {
-      Sqlite.updateTwitterID(removeFollowIDMap, TableName.TWITTER_FOLLOW_IDS);
+      Sqlite.updateTwitterID(removeFollowIDMap, TableName.TWITTER_FOLLOW_IDS, sdf.format(now));
       System.out.println("Info:フォローを外したユーザ(凍結されたユーザも含む)");
       removeFollowIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
+    //TwitterFollowerIDs を更新
     if(removeFollowerIDMap.size() != 0) {
-      Sqlite.updateTwitterID(removeFollowerIDMap, TableName.TWITTER_FOLLOWER_IDS);
+      Sqlite.updateTwitterID(removeFollowerIDMap, TableName.TWITTER_FOLLOWER_IDS, sdf.format(now));
       System.out.println("Info:フォローを外されたユーザ(凍結されたユーザも含む)");
       removeFollowerIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
+    //TwitterIDs を更新
     if(removeTwitterIDMap.size() != 0) {
-      Sqlite.updateTwitterID(removeTwitterIDMap, TableName.TWITTER_IDS);
+      Sqlite.updateTwitterID(removeTwitterIDMap, TableName.TWITTER_IDS, sdf.format(now));
       //System.out.println("Info:フォローを外した もしくは フォローを外されたユーザ");
       //removeTwitterIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
     
     if(followIDMap.size() != 0) {
-      Sqlite.updateTwitterID(followIDMap, TableName.TWITTER_FOLLOW_IDS);
+      Sqlite.updateTwitterID(followIDMap, TableName.TWITTER_FOLLOW_IDS, sdf.format(now));
       System.out.println("Info:フォローしたユーザ");
       followIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
     if(followerIDMap.size() != 0) {
-      Sqlite.updateTwitterID(followerIDMap, TableName.TWITTER_FOLLOWER_IDS);
+      Sqlite.updateTwitterID(followerIDMap, TableName.TWITTER_FOLLOWER_IDS, sdf.format(now));
       System.out.println("Info:フォローされたユーザ");
       followerIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
     if(notRemoveTwitterIDMap.size() != 0) {
-      Sqlite.updateTwitterID(notRemoveTwitterIDMap, TableName.TWITTER_IDS);
+      Sqlite.updateTwitterID(notRemoveTwitterIDMap, TableName.TWITTER_IDS, sdf.format(now));
       //System.out.println("Info:再度フォローした もしくは 再度フォローされたユーザ");
       //notRemoveTwitterIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
