@@ -33,7 +33,9 @@ public class TwitterIDSets {
         AllIDSet.add(it);
       });
     }catch(TwitterException te) {
+      System.out.println("Error:TwitterIDSets:Throw TwitterException.");
       System.out.println(te.toString());
+      System.exit(1);
     }
   }
 
