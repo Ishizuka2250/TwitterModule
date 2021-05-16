@@ -34,9 +34,9 @@ public class SqliteIO {
   public enum TwitterIDPattern {
     /** 全UserID(Follow_ID + Follower_ID)を指定 */
     ALL_ID,
-    /** フォローしたユーザのみ指定 */
+    /** フォローしたユーザを指定 */
     FOLLOW_ID,
-    /** フォローされているユーザのみ指定 */
+    /** フォローされているユーザを指定 */
     FOLLOWER_ID
   }
   
@@ -45,7 +45,7 @@ public class SqliteIO {
     /** すべてのユーザ(条件指定無し) */
     ALL,
     /** 片思い・相互フォローユーザを対象 */
-    NO_REMOVE_USER_AND_BANUSER,
+    FOLLOW_AND_FOLLOWER,
     /** 絶縁状態・凍結されているユーザを対象 */
     REMOVE_USER_AND_BANUSER
   }
@@ -351,7 +351,7 @@ public class SqliteIO {
     String SQL="";
     int banUserFlg,removeFlg,notFollowFlg,removeFollowerFlg;
     
-    if((userPattern == UserPattern.ALL) || (userPattern == UserPattern.NO_REMOVE_USER_AND_BANUSER)) {
+    if((userPattern == UserPattern.ALL) || (userPattern == UserPattern.FOLLOW_AND_FOLLOWER)) {
       banUserFlg = removeFlg = notFollowFlg = removeFollowerFlg = 0;
     }else{
       banUserFlg = removeFlg = notFollowFlg = removeFollowerFlg = 1;
@@ -368,7 +368,7 @@ public class SqliteIO {
           }else{
             SQL = "select TwitterIDs.TwitterID from TwitterIDs\n"
                 + "where TwitterIDs.RemoveFlg = " + removeFlg + "\n";
-            if(userPattern == UserPattern.NO_REMOVE_USER_AND_BANUSER) {
+            if(userPattern == UserPattern.FOLLOW_AND_FOLLOWER) {
               SQL = SQL + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
             }else if(userPattern == UserPattern.REMOVE_USER_AND_BANUSER){
               SQL = SQL + "or TwitterIDs.BanUserFlg = " + banUserFlg + ";";
@@ -383,7 +383,7 @@ public class SqliteIO {
                 + "left outer join TwitterIDs\n"
                 + "on TwitterFollowIDs.TwitterID = TwitterIDs.TwitterID\n"
                 + "where TwitterFollowIDs.NotFollowFlg = " + notFollowFlg + "\n";
-            if(userPattern == UserPattern.NO_REMOVE_USER_AND_BANUSER) {
+            if(userPattern == UserPattern.FOLLOW_AND_FOLLOWER) {
               SQL = SQL + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
             }else if(userPattern == UserPattern.REMOVE_USER_AND_BANUSER){
               SQL = SQL + "or TwitterIDs.BanUserFlg = " + banUserFlg + ";";
@@ -398,7 +398,7 @@ public class SqliteIO {
                 + "left outer join TwitterIDs\n"
                 + "on TwitterFollowerIDs.TwitterID = TwitterIDs.TwitterID\n"
                 + "where TwitterFollowerIDs.RemoveFollowerFlg = " + removeFollowerFlg + "\n";
-            if(userPattern == UserPattern.NO_REMOVE_USER_AND_BANUSER) {
+            if(userPattern == UserPattern.FOLLOW_AND_FOLLOWER) {
               SQL = SQL + "and TwitterIDs.BanUserFlg = " + banUserFlg + ";";
             }else if(userPattern == UserPattern.REMOVE_USER_AND_BANUSER){
               SQL = SQL + "or TwitterIDs.BanUserFlg = " + banUserFlg + ";";

@@ -43,16 +43,16 @@ public class TwitterIDSets {
     sqlite.getTwitterIDList(TwitterIDPattern.ALL_ID, UserPattern.ALL).forEach(it -> {
       AllIDSet.add(it);
     });
-    sqlite.getTwitterIDList(TwitterIDPattern.FOLLOW_ID, UserPattern.NO_REMOVE_USER_AND_BANUSER).forEach(it -> {
+    sqlite.getTwitterIDList(TwitterIDPattern.FOLLOW_ID, UserPattern.FOLLOW_AND_FOLLOWER).forEach(it -> {
       FollowIDSet.add(it);
     });
-    sqlite.getTwitterIDList(TwitterIDPattern.FOLLOWER_ID, UserPattern.NO_REMOVE_USER_AND_BANUSER).forEach(it -> {
+    sqlite.getTwitterIDList(TwitterIDPattern.FOLLOWER_ID, UserPattern.FOLLOW_AND_FOLLOWER).forEach(it -> {
       FollowerIDSet.add(it);
     });
     sqlite.getTwitterIDList(TwitterIDPattern.FOLLOW_ID, UserPattern.REMOVE_USER_AND_BANUSER).forEach(it -> {
       RemoveFollowIDSet.add(it);
     });
-    sqlite.getTwitterIDList(TwitterIDPattern.FOLLOW_ID, UserPattern.REMOVE_USER_AND_BANUSER).forEach(it -> {
+    sqlite.getTwitterIDList(TwitterIDPattern.FOLLOWER_ID, UserPattern.REMOVE_USER_AND_BANUSER).forEach(it -> {
       RemoveFollowerIDSet.add(it);
     });
   }

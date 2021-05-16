@@ -45,7 +45,7 @@ public class TwitterIO {
     /** すべてのユーザ(条件指定無し) */
     UPDATE_ALL,
     /** フォローしている もしくは フォローされているユーザを対象 */
-    UPDATE_NO_REMOVE_USER_AND_BANUSER,
+    UPDATE_FOLLOW_AND_FOLLOWER,
     /** フォローしていない もしくは フォローされていないユーザ, 凍結されているユーザを対象 */
     UPDATE_BANUSER,
     UPDATE_NO_OPTION
@@ -66,8 +66,8 @@ public class TwitterIO {
     List<String> IDList = new ArrayList<String>();
     if(pattern == UpdatePattern.UPDATE_ALL) {
       IDList = Sqlite.getTwitterIDList(TwitterIDPattern.ALL_ID,UserPattern.ALL);
-    }else if(pattern == UpdatePattern.UPDATE_NO_REMOVE_USER_AND_BANUSER){
-      IDList = Sqlite.getTwitterIDList(TwitterIDPattern.ALL_ID,UserPattern.NO_REMOVE_USER_AND_BANUSER);
+    }else if(pattern == UpdatePattern.UPDATE_FOLLOW_AND_FOLLOWER){
+      IDList = Sqlite.getTwitterIDList(TwitterIDPattern.ALL_ID,UserPattern.FOLLOW_AND_FOLLOWER);
     }else if(pattern == UpdatePattern.UPDATE_BANUSER){
       IDList = Sqlite.getTwitterIDBan();
     }
@@ -243,40 +243,42 @@ public class TwitterIO {
     Set<String> notRemoveTwitterIDSet = new HashSet<String>();
     Set<String> removeTwitterIDSet = new HashSet<String>();
     
-    //過去時点でフォローしているユーザ と 現在フォローしているユーザ を突合 → フォローから外した
+    //過去時点でフォローしているユーザ と 現時点フォローしているユーザ を突合 → 現時点でフォローしていない = フォローから外した
     for(String id : oldTwitterIDSets.FollowIDSet) {
       if(!nowTwitterIDSets.FollowIDSet.contains(id)) removeFollowIDMap.put(id,FollowState.NOT_FOLLOW);
     }
     
-    //現在フォローしているユーザ と 過去時点でフォローしているユーザ を突合 → フォローした
+    //現時点フォローしているユーザ と 過去時点でフォローしているユーザ を突合 → 現時点でフォロー している = フォローした
     for(String id : nowTwitterIDSets.FollowIDSet) {
       if(!oldTwitterIDSets.FollowIDSet.contains(id)) followIDMap.put(id,FollowState.FOLLOW);
     }
     
-    //過去時点でフォローされているユーザ と 現在でフォローされているユーザ を突合 → フォローから外された
+    //過去時点でフォローされているユーザ と 現時点でフォローされているユーザ を突合 → 現時点でフォローされていない = 現時点でフォローから外された
     for(String id : oldTwitterIDSets.FollowerIDSet) {
       if(!nowTwitterIDSets.FollowerIDSet.contains(id)) removeFollowerIDMap.put(id,FollowState.NOT_FOLLOWER);
     }
     
-    //現在フォローされているユーザ と 過去時点でフォローされているユーザを突合 → フォローされた
+    //現時点フォローされているユーザ と 過去時点でフォローされているユーザを突合 → 現時点でフォローされている = フォローされた
     for(String id : nowTwitterIDSets.FollowerIDSet) {
       if(!oldTwitterIDSets.FollowerIDSet.contains(id)) followerIDMap.put(id,FollowState.FOLLOWER);
     }
     
-    //フォローしていない & フォローされていない状態 のユーザを探す.
-    for(String id : removeFollowIDMap.keySet()) {
-      if((removeFollowerIDMap.get(id) != null) || (oldTwitterIDSets.RemoveFollowerIDSet.contains(id))) {
+    //絶縁状態(フォローしていない & フォローされていない状態)のユーザを探す.
+    for(String id : removeFollowerIDMap.keySet()) {
+      //現時点でフォローを外した OR 過去時点でフォローを外した
+      if((removeFollowIDMap.get(id) != null) || (oldTwitterIDSets.RemoveFollowIDSet.contains(id))) {
         removeTwitterIDSet.add(id);
       }
     }
-    for(String id : removeFollowerIDMap.keySet()) {
-      if((removeFollowIDMap.get(id) != null) || (oldTwitterIDSets.RemoveFollowIDSet.contains(id))) {
+    for(String id : removeFollowIDMap.keySet()) {
+      //現時点でフォローが外されている OR 過去時点でフォローが外されている
+      if((removeFollowerIDMap.get(id) != null) || (oldTwitterIDSets.RemoveFollowerIDSet.contains(id))) {
         removeTwitterIDSet.add(id);
       }
     }
     removeTwitterIDSet.forEach((v) -> {removeTwitterIDMap.put(v, FollowState.REMOVE);});
     
-    //フォローした もしくは フォローされた ユーザを探す.
+    //絶縁状態から復帰したユーザ(フォローした もしくは フォローされた ユーザ)を探す.
     for(String id : followIDMap.keySet()) {
       notRemoveTwitterIDSet.add(id);
     }
@@ -285,46 +287,47 @@ public class TwitterIO {
     }
     notRemoveTwitterIDSet.forEach((v) -> {notRemoveTwitterIDMap.put(v, FollowState.NOT_REMOVE);});
     
-    //TwitterFollowIDs を更新
+    //TwitterFollowIDs を更新 (フォローを外したユーザ)
     if(removeFollowIDMap.size() != 0) {
       Sqlite.updateTwitterID(removeFollowIDMap, TableName.TWITTER_FOLLOW_IDS, sdf.format(now));
       System.out.println("Info:フォローを外したユーザ(凍結されたユーザも含む)");
       removeFollowIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
-    //TwitterFollowerIDs を更新
+    //TwitterFollowerIDs を更新 (フォローを外されたユーザ)
     if(removeFollowerIDMap.size() != 0) {
       Sqlite.updateTwitterID(removeFollowerIDMap, TableName.TWITTER_FOLLOWER_IDS, sdf.format(now));
       System.out.println("Info:フォローを外されたユーザ(凍結されたユーザも含む)");
       removeFollowerIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
-    //TwitterIDs を更新
+    //TwitterIDs を更新 (絶縁状態のユーザ)
     if(removeTwitterIDMap.size() != 0) {
       Sqlite.updateTwitterID(removeTwitterIDMap, TableName.TWITTER_IDS, sdf.format(now));
-      //System.out.println("Info:フォローを外した もしくは フォローを外されたユーザ");
-      //removeTwitterIDMap.forEach((k,v) -> System.out.println("  " + k));
+      System.out.println("Info:絶縁状態のユーザ");
+      removeTwitterIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
     
+    //TwitterFollowIDs を更新 (フォローしたユーザ)
     if(followIDMap.size() != 0) {
       Sqlite.updateTwitterID(followIDMap, TableName.TWITTER_FOLLOW_IDS, sdf.format(now));
       System.out.println("Info:フォローしたユーザ");
       followIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
+    //TwitterFollowerIDs を更新 (フォローされたユーザ)
     if(followerIDMap.size() != 0) {
       Sqlite.updateTwitterID(followerIDMap, TableName.TWITTER_FOLLOWER_IDS, sdf.format(now));
       System.out.println("Info:フォローされたユーザ");
       followerIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
+    //TwitterIDs を更新 (絶縁状態から復帰したユーザ)
     if(notRemoveTwitterIDMap.size() != 0) {
       Sqlite.updateTwitterID(notRemoveTwitterIDMap, TableName.TWITTER_IDS, sdf.format(now));
-      //System.out.println("Info:再度フォローした もしくは 再度フォローされたユーザ");
-      //notRemoveTwitterIDMap.forEach((k,v) -> System.out.println("  " + k));
+      System.out.println("Info:絶縁状態から復帰したユーザ");
+      notRemoveTwitterIDMap.forEach((k,v) -> System.out.println("  " + k));
     }
     
+    //更新された件数を集計
     int updateSize = removeFollowIDMap.size() + removeFollowerIDMap.size() + removeTwitterIDMap.size()
         + followIDMap.size() + followerIDMap.size() + notRemoveTwitterIDMap.size();
     if(updateSize == 0) System.out.println("Info:更新対象のユーザはいません.");
   }
-
-
-
 }

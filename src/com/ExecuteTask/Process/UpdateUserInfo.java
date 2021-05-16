@@ -11,7 +11,7 @@ public class UpdateUserInfo implements IProcess{
     if ((Pattern != null) || (Pattern == UpdatePattern.UPDATE_NO_OPTION)) {
       this.UpPattern = Pattern;
     }else{
-      this.UpPattern = UpdatePattern.UPDATE_NO_REMOVE_USER_AND_BANUSER; 
+      this.UpPattern = UpdatePattern.UPDATE_FOLLOW_AND_FOLLOWER; 
     }
   }
   

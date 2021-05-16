@@ -42,7 +42,7 @@ public class CreateTask {
       
       if(optionList.size() > 0) {
         initProcess(optionList,userName);
-        initOptionCharacters("anb");
+        initOptionCharacters("afb");
         setProcess(optionList,valueList);
       }else{
         outputErrorMessage("Option‚ðŽw’è‚µ‚Ä‚­‚¾‚³‚¢.");
@@ -93,7 +93,7 @@ public class CreateTask {
     if(update) {
       for(String argsOption : OptionList) {
         if(argsOption.contains("a")) return UpdatePattern.UPDATE_ALL;
-        if(argsOption.contains("n")) return UpdatePattern.UPDATE_NO_REMOVE_USER_AND_BANUSER;
+        if(argsOption.contains("f")) return UpdatePattern.UPDATE_FOLLOW_AND_FOLLOWER;
         if(argsOption.contains("b")) return UpdatePattern.UPDATE_BANUSER;
       }
       return UpdatePattern.UPDATE_NO_OPTION;
